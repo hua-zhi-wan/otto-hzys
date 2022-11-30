@@ -11,14 +11,15 @@
     "core-js": "^3.8.3",
     "crunker": "^2.0.0",
     "element-plus": "^2.2.25",
-    "howler": "^2.2.3",
     "js-pinyin": "^0.1.9",
     "lodash": "^4.17.21",
+    "pizzicato": "^0.6.4",
     "vue": "^3.2.13"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/eslint-parser": "^7.12.16",
+    "@types/pizzicato": "^0.6.0",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",

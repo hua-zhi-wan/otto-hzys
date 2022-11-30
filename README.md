@@ -1,24 +1,27 @@
-# otto-hzys
+# ♿ 大电老师活字印刷 otto-hzys
 
-## Project setup
-```
-npm install
-```
+## 🚮 简介
+电棍otto语音活字印刷生成器。  
+启发于项目 [sakaneko117/HUOZI](https://github.com/sakaneko117/HUOZI)，架构采用纯前端。（虽然Fork了，但全改了）
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+前端样式采用组件库 element-plus。部署于 vercel 平台。
 
-### Compiles and minifies for production
-```
-npm run build
-```
+软件采用 MIT 协议开源，您可以在浏览器中免费的使用它。
 
-### Lints and fixes files
-```
-npm run lint
-```
+## 🛂 功能说明
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+### 🛃 介绍
++ 活字印刷：将文本转为电棍otto的语音。
++ 效果通道：在浏览器中试听时，可以适当调整内置效果器的参数，以达到更丰富的整活效果。
++ 艺术殿堂：被封禁的神圣作品会在本网站内保存补档，若想增加可以在issue区投稿补档。
+
+### 🚻 原理
++ 将汉字和英文字母转换为汉语拼音，在语音库内查找比对并进行拼接。（可恶，不要以为这个很简单啊！光是增加一个原声大碟模式就让我多写了一个晚上啊可恶可恶可恶！！！）
++ 效果组采用了 Pizzicato.js 开源库
+
+### 🛅 参数
++ 太多了讲不完了！请自行了解学习人声音频处理！
+
+## 🚼 开源
+本项目采用 MIT 开源协议    
+父项目用的不知道什么开源协议
