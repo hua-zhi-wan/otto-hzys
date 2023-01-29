@@ -20,4 +20,4 @@ def gen_blank_audio():
 
 
 if __name__ == '__main__':
-    gen_blank_audio()
+    gen_json()

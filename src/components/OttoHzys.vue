@@ -139,22 +139,32 @@
             </el-card>
             <h4>注意事项</h4>
             <el-card shadow="never">
-              <el-space wrap>
-                <div>
-                  原声大碟模式：当匹配到特定拼音会使用原声大碟，当前版本的原声大碟包括以下内容
-                  <ul>
-                    <li v-for="item of ysddShow.value" :key="item">{{ item }}</li>
-                  </ul>
-                </div>
-                <div>
-                  字间停顿：开启后会在每字中间增加0.25秒的空白时间，方便将生成结果作为剪辑素材。
-                </div>
-                <div>
-                  下载音频仅支持下载效果通道前的音频。
-                </div>
-                <div>
-                  感谢光临使用本项目。如果对项目有其他构想或建议或Bug也欢迎到Github链接下方提Issue，合理的建议会及时采纳。
-                </div>
+              <el-space wrap class="proj-info">
+                <ul>
+                  <li>
+                    <div>
+                      原声大碟模式：当匹配到特定拼音会使用原声大碟，当前版本的原声大碟包括以下内容
+                      <ul>
+                        <li v-for="item of ysddShow.value" :key="item">{{ item }}</li>
+                      </ul>
+                    </div>
+                  </li>
+                  <li>
+                    <div>
+                      字间停顿：开启后会在每字中间增加0.25秒的空白时间，方便将生成结果作为剪辑素材。
+                    </div>
+                  </li>
+                  <li>
+                    <div>
+                      下载音频仅支持下载效果通道前的音频。
+                    </div>
+                  </li>
+                  <li>
+                    <div>
+                      感谢光临并使用本项目。如果对项目有其他构想或建议或Bug也欢迎到Github链接下方提Issue，合理的建议会及时采纳。
+                    </div>
+                  </li>
+                </ul>
               </el-space>
             </el-card>
             <el-divider/>
@@ -210,7 +220,7 @@ export default {
       isSliced: false,
     })
     const isComplete = ref(true)
-    const version = ref('v1.0')
+    const version = ref('v1.1')
     const audioSrc = reactive({value: '#', blob: undefined, name: '#'})
     const ysddShow = reactive({value: []})
 
@@ -261,13 +271,13 @@ export default {
       const chinglishifyed = formData.text
           .replace(/[a-zA-Z0-9.]/g, (m) => `<${m.toLowerCase().charCodeAt(0)}>`)
           .replace(/<[0-9]+>/g, (m) => `[${chinglish.get(String.fromCharCode(parseInt(m.slice(1, -1))))}]`)
-      //console.log(chinglishifyed)
+      console.log(chinglishifyed)
 
       // 将汉字转为拼音，过滤不可识别标识
       const purePinyin = pinyin.getFullChars(chinglishifyed).replace(/[^a-zA-Z[\]]/g, '');
       // 将[xxx]放入短数组中
       const pinyinTokens = purePinyin.split(/(?=\[)|(?<=])/).map(i => /\[.+]/.test(i) ? [i.slice(1, -1)] : i)
-      //console.log(pinyinTokens)
+      console.log(pinyinTokens)
 
       // 匹配原声大碟，将完整句子替换为原声大碟
       function ysdd(pinyinTokens) {
@@ -296,7 +306,7 @@ export default {
           cut.push(tmp)
         }
       }
-      //console.log('cut', cut)
+      console.log('cut', cut)
 
       // 生成最终的可构造音频序列
       function slice(cut, flag) {
@@ -315,7 +325,7 @@ export default {
       const sliced = slice(cut, formData.isSliced)
           .map(i => i.toLowerCase())
           .filter(i => tokenSet.has(i) || /<.+>|_/.test(i))
-      //console.log('sliced', sliced)
+      console.log('sliced', sliced)
 
 
       // 等待处理
@@ -511,5 +521,9 @@ div {
 
 h2 {
   text-align: center;
+}
+
+.proj-info {
+  line-height: 1.5rem;
 }
 </style>
