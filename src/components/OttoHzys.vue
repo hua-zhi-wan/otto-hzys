@@ -134,6 +134,8 @@
                            @click="showArt('/static/music/Bones - 欠债调音师.mp3', 'Bones - 欠债调音师')"/>
                 <el-avatar src="/static/img/rk5.jpg" size="large"
                            @click="showArt('/static/music/I Got Smoke - V在燃烧.mp3', 'I Got Smoke - V在燃烧')"/>
+                <el-avatar src="/static/img/ccvbn.jpg" size="large"
+                           @click="showArt('/static/music/Ccvbn -（完）电棍：波西唢呐狂想曲.mp3', 'Ccvbn -（完）电棍：♿波西唢呐狂想曲♿')"/>
                 <div>点击头像听音乐</div>
               </el-space>
             </el-card>
