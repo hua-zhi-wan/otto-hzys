@@ -1,4 +1,5 @@
 # ♿ 大电老师活字印刷 otto-hzys
+[https://otto-hzys.kaga.ga](https://otto-hzys.kaga.ga)
 
 ## 🚮 简介
 电棍otto语音活字印刷生成器。  
