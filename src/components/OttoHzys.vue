@@ -122,6 +122,7 @@
               <el-divider/>
               <el-button-group>
                 <el-button @click="soundPlay()" type="success">播放</el-button>
+                <el-button @click="playReversed()" type="warning">倒放</el-button>
                 <el-button @click="soundStop()" type="danger">停止播放</el-button>
                 <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
               </el-button-group>
@@ -486,6 +487,57 @@ export default {
       }
     }
 
+    function playReversed() {
+      if (audioSrc.value !== '#') {
+        if (sound.value !== undefined && sound.value.playing) {
+          sound.value.stop();
+        }
+        applyEffects();
+        sound.value = new Pizzicato.Sound({
+          source: 'file',
+          options: {
+            path: audioSrc.value
+          }
+        }, () => {
+          var audioContext = Pizzicato.context;
+          var source = audioContext.createBufferSource();
+          
+          var request = new XMLHttpRequest();
+          request.open('GET', audioSrc.value, true);
+          request.responseType = 'arraybuffer';
+          request.onload = function() {
+            audioContext.decodeAudioData(request.response, function(buffer) {
+              var reversedBuffer = reverseBuffer(buffer);
+              source.buffer = reversedBuffer;
+              source.connect(audioContext.destination);
+              source.start(0);
+            });
+          };
+          request.send();
+        });
+      }
+    }
+
+    function reverseBuffer(buffer) {
+      var audioContext = Pizzicato.context;
+      var numberOfChannels = buffer.numberOfChannels;
+      var channelData = [];
+      for (var i = 0; i < numberOfChannels; i++) {
+        channelData[i] = buffer.getChannelData(i).reverse();
+      }
+      var reversedBuffer = audioContext.createBuffer(
+        numberOfChannels,
+        buffer.length,
+        buffer.sampleRate
+      );
+      for (var j = 0; j < numberOfChannels; j++) {
+        reversedBuffer.getChannelData(j).set(channelData[j]);
+      }
+      return reversedBuffer;
+    }
+
+
+    
     function showArt(src, name) {
       audioSrc.value = src
       audioSrc.blob = undefined
@@ -503,6 +555,7 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
+      playReversed,
       soundStop,
       audioEffects,
       downloadSound,
