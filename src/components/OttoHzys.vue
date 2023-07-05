@@ -340,7 +340,7 @@ export default {
           tmpFetchList
               .filter(v => !tokenDict.has(v))
               .map((v) => {
-                    const uri = /<.+>/.test(v) ? (`${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.wav`) : (`${TOKENS_PATH}/${v}.wav`)
+                    const uri = /<.+>/.test(v) ? (`${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.mp3`) : (`${TOKENS_PATH}/${v}.wav`)
                     return fetch(uri, {
                       method: 'GET',
                       cache: 'force-cache'
