@@ -108,6 +108,10 @@
                 <el-link href="https://github.com/sakaneko117" type="primary">sakaneko117</el-link>
                 (两位原作者) 提供了原版的完整实现 以及部分开发素材
               </el-descriptions-item>
+              <el-descriptions-item label="贡献者">
+                <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
+                新增了音频倒放和倒放下载功能，并增加了更多原声大碟
+              </el-descriptions-item>
             </el-descriptions>
           </el-col>
         </el-row>
@@ -139,7 +143,7 @@ export default {
       isSliced: false,
     })
     const isComplete = ref(true)
-    const version = ref('v1.1')
+    const version = ref('v1.2')
     const audioSrc = reactive({value: '#', blob: undefined, name: '#'})
     const ysddShow = reactive({value: []})
 
@@ -300,7 +304,7 @@ export default {
           .finally(() => isComplete.value = true)
     }
 
-    const sound = {value: undefined, effects: []}
+    const sound = {value: undefined}
 
     function soundPlay() {
       if (audioSrc.value !== '#') {
