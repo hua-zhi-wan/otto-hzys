@@ -35,95 +35,12 @@
 
             <h4>生成音频</h4>
             <el-card shadow="never" :header="'效果组 - 已加载音频：' + audioSrc.name">
-              <el-collapse>
-                <el-collapse-item title="均衡">
-                  <el-form :model="audioEffects.eq" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.eq.enable"/>
-                    </el-form-item>
-                    <el-form-item label="低切频率">
-                      <el-slider v-model="audioEffects.eq.options.lowFrequency" show-input :min="0" :max="1000"
-                                 :step="1"/>
-                    </el-form-item>
-                    <el-form-item label="高切频率">
-                      <el-slider v-model="audioEffects.eq.options.highFrequency" show-input :min="10000" :max="22050"
-                                 :step="10"/>
-                    </el-form-item>
-                    <el-form-item label="低切锐度">
-                      <el-slider v-model="audioEffects.eq.options.lowPeak" :max="20" :min="0.001" :step="0.001"
-                                 show-input/>
-                    </el-form-item>
-                    <el-form-item label="高切锐度">
-                      <el-slider v-model="audioEffects.eq.options.highPeak" :max="20" :min="0.001" :step="0.001"
-                                 show-input/>
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="压缩">
-                  <el-form :model="audioEffects.comp" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.comp.enable"/>
-                    </el-form-item>
-                    <el-form-item label="阈值">
-                      <el-slider v-model="audioEffects.comp.options.threshold" show-input :max="0" :min="-50"
-                                 :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="拐点">
-                      <el-slider v-model="audioEffects.comp.options.knee" show-input :min="0" :max="40" :step="1"/>
-                    </el-form-item>
-                    <el-form-item label="触发时间">
-                      <el-slider v-model="audioEffects.comp.options.attack" show-input :min="0" :max="1" :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="释放时间">
-                      <el-slider v-model="audioEffects.comp.options.release" show-input :min="0" :max="1"
-                                 :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="压缩比">
-                      <el-slider v-model="audioEffects.comp.options.ratio" show-input :min="1" :max="20" :step="0.01"/>
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="延迟">
-                  <el-form :model="audioEffects.delay" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.delay.enable"/>
-                    </el-form-item>
-                    <el-form-item label="反弹">
-                      <el-slider v-model="audioEffects.delay.options.feedback" show-input :min="0" :max="0.6"
-                                 :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="时长">
-                      <el-slider v-model="audioEffects.delay.options.time" show-input :min="0" :max="1" :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="干湿比">
-                      <el-slider v-model="audioEffects.delay.options.mix" show-input :min="0" :max="1" :step="0.01"/>
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="混响">
-                  <el-form :model="audioEffects.reverb" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.reverb.enable"/>
-                    </el-form-item>
-                    <el-form-item label="时长">
-                      <el-slider v-model="audioEffects.reverb.options.time" show-input :min="0" :max="3"
-                                 :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="衰减">
-                      <el-slider v-model="audioEffects.reverb.options.decay" show-input :min="0" :max="3"
-                                 :step="0.01"/>
-                    </el-form-item>
-                    <el-form-item label="干湿比">
-                      <el-slider v-model="audioEffects.reverb.options.mix" show-input :min="0" :max="1" :step="0.01"/>
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-              </el-collapse>
-              <el-divider/>
               <el-button-group>
                 <el-button @click="soundPlay()" type="success">播放</el-button>
+                <el-button @click="playReversed()" type="warning">倒放</el-button>
                 <el-button @click="soundStop()" type="danger">停止播放</el-button>
                 <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
+                <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
               </el-button-group>
             </el-card>
 
@@ -191,6 +108,10 @@
                 <el-link href="https://github.com/sakaneko117" type="primary">sakaneko117</el-link>
                 (两位原作者) 提供了原版的完整实现 以及部分开发素材
               </el-descriptions-item>
+              <el-descriptions-item label="贡献者">
+                <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
+                新增了音频倒放和倒放下载功能，并增加了更多原声大碟
+              </el-descriptions-item>
             </el-descriptions>
           </el-col>
         </el-row>
@@ -222,7 +143,7 @@ export default {
       isSliced: false,
     })
     const isComplete = ref(true)
-    const version = ref('v1.1')
+    const version = ref('v1.2')
     const audioSrc = reactive({value: '#', blob: undefined, name: '#'})
     const ysddShow = reactive({value: []})
 
@@ -339,7 +260,7 @@ export default {
           tmpFetchList
               .filter(v => !tokenDict.has(v))
               .map((v) => {
-                    const uri = /<.+>/.test(v) ? (`${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.wav`) : (`${TOKENS_PATH}/${v}.wav`)
+                    const uri = /<.+>/.test(v) ? (`${YSDD_TOKEN_PATH}/${v.replace(/<(.+)>/, '$1')}.mp3`) : (`${TOKENS_PATH}/${v}.wav`)
                     return fetch(uri, {
                       method: 'GET',
                       cache: 'force-cache'
@@ -383,92 +304,19 @@ export default {
           .finally(() => isComplete.value = true)
     }
 
-    const defaultEffects = {
-      eq: {
-        enable: false,
-        options: {
-          lowPeak: 10,
-          highPeak: 10,
-          lowFrequency: 20,
-          highFrequency: 20000,
-        }
-      },
-      comp: {
-        enable: false,
-        options: {
-          threshold: -24,
-          knee: 30,
-          attack: 0.003,
-          release: 0.25,
-          ratio: 3,
-        }
-      },
-      delay: {
-        enable: false,
-        options: {
-          feedback: 0.3,
-          time: 0.3,
-          mix: 0.2
-        }
-      },
-      reverb: {
-        enable: false,
-        options: {
-          time: 0.3,
-          decay: 1,
-          mix: 0.2
-        }
-      }
-    }
-    const audioEffects = reactive(JSON.parse(JSON.stringify(defaultEffects)))
-
-    const sound = {value: undefined, effects: []}
-
-    function applyEffects() {
-      sound.effects = []
-      if (audioEffects.eq.enable) {
-        const lowpass = new Pizzicato.Effects.LowPassFilter({
-          frequency: audioEffects.eq.options.highFrequency,
-          peak: audioEffects.eq.options.highPeak
-        })
-        const highpass = new Pizzicato.Effects.HighPassFilter({
-          frequency: audioEffects.eq.options.lowFrequency,
-          peak: audioEffects.eq.options.lowPeak
-        })
-        sound.effects.push(lowpass, highpass)
-      }
-      if (audioEffects.comp.enable) {
-        const comp = new Pizzicato.Effects.Compressor(audioEffects.comp.options)
-        sound.effects.push(comp)
-      }
-      if (audioEffects.delay.enable) {
-        const delay = new Pizzicato.Effects.Delay(audioEffects.delay.options)
-        sound.effects.push(delay)
-      }
-      if (audioEffects.reverb.enable) {
-        const delay = new Pizzicato.Effects.Delay({
-          ...audioEffects.reverb.options,
-          reverse: false
-        })
-        sound.effects.push(delay)
-      }
-    }
+    const sound = {value: undefined}
 
     function soundPlay() {
       if (audioSrc.value !== '#') {
         if (sound.value !== undefined && sound.value.playing) {
           sound.value.stop()
         }
-        applyEffects()
         sound.value = new Pizzicato.Sound({
           source: 'file',
           options: {
             path: audioSrc.value
           }
         }, () => {
-          for (const eff of sound.effects) {
-            sound.value.addEffect(eff)
-          }
           sound.value.play()
         })
       }
@@ -486,6 +334,125 @@ export default {
       }
     }
 
+    function playReversed() {
+      if (audioSrc.value !== '#') {
+        if (sound.value !== undefined && sound.value.playing) {
+          sound.value.stop();
+        }
+        sound.value = new Pizzicato.Sound({
+          source: 'file',
+          options: {
+            path: audioSrc.value
+          }
+        }, () => {
+          var audioContext = Pizzicato.context;
+          var source = audioContext.createBufferSource();
+          
+          var request = new XMLHttpRequest();
+          request.open('GET', audioSrc.value, true);
+          request.responseType = 'arraybuffer';
+          request.onload = function() {
+            audioContext.decodeAudioData(request.response, function(buffer) {
+              var reversedBuffer = reverseBuffer(buffer);
+              source.buffer = reversedBuffer;
+              source.connect(audioContext.destination);
+              source.start(0);
+            });
+          };
+          request.send();
+        });
+      }
+    }
+
+    function downloadReversed() {
+      if (audioSrc.blob !== undefined) {
+        var audioContext = Pizzicato.context;
+        var request = new XMLHttpRequest();
+        request.open('GET', audioSrc.value, true);
+        request.responseType = 'arraybuffer';
+        request.onload = function() {
+          audioContext.decodeAudioData(request.response, function(buffer) {
+            var reversedBuffer = reverseBuffer(buffer);
+            var blob = bufferToWave(reversedBuffer, buffer.length);
+            crunker.download(blob, audioSrc.name + '_reversed');
+          });
+        };
+        request.send();
+      }
+    }
+
+    function bufferToWave(abuffer, len) {
+      var numOfChan = abuffer.numberOfChannels,
+        length = len * numOfChan * 2 + 44,
+        buffer = new ArrayBuffer(length),
+        view = new DataView(buffer),
+        channels = [],
+        i,
+        sample,
+        offset = 0,
+        pos = 0;
+      
+      setUint32(0x46464952); // "RIFF"
+      setUint32(length - 8); // file length - 8
+      setUint32(0x45564157); // "WAVE"
+      
+      setUint32(0x20746d66); // fmt子块
+      setUint32(16); // length = 16
+      setUint16(1); // PCM (uncompressed)
+      setUint16(numOfChan);
+      setUint32(abuffer.sampleRate);
+      setUint32(abuffer.sampleRate * 2 * numOfChan);
+      setUint16(numOfChan * 2);
+      setUint16(16);
+      
+      setUint32(0x61746164);
+      setUint32(length - pos - 4);
+      
+      for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+      
+      while (pos < length) {
+        for (i = 0; i < numOfChan; i++) {
+          // interleave channels
+          sample = Math.max(-1, Math.min(1, channels[i][offset]));
+          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+          view.setInt16(pos, sample, true);
+          pos += 2;
+        }
+        offset++;
+      }
+      
+      // create Blob
+      return new Blob([buffer], { type: "audio/wav" });
+      
+      function setUint16(data) {
+        view.setUint16(pos, data, true);
+        pos += 2;
+      }
+      
+      function setUint32(data) {
+        view.setUint32(pos, data, true);
+        pos += 4;
+      }
+    }
+
+    function reverseBuffer(buffer) {
+      var audioContext = Pizzicato.context;
+      var numberOfChannels = buffer.numberOfChannels;
+      var channelData = [];
+      for (var i = 0; i < numberOfChannels; i++) {
+        channelData[i] = buffer.getChannelData(i).reverse();
+      }
+      var reversedBuffer = audioContext.createBuffer(
+        numberOfChannels,
+        buffer.length,
+        buffer.sampleRate
+      );
+      for (var j = 0; j < numberOfChannels; j++) {
+        reversedBuffer.getChannelData(j).set(channelData[j]);
+      }
+      return reversedBuffer;
+    }
+    
     function showArt(src, name) {
       audioSrc.value = src
       audioSrc.blob = undefined
@@ -501,10 +468,10 @@ export default {
       ysddShow,
 
       audioSrc,
-      applyEffects,
       soundPlay,
+      playReversed,
+      downloadReversed,
       soundStop,
-      audioEffects,
       downloadSound,
       showArt
     }
