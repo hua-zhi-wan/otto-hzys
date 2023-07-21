@@ -192,10 +192,9 @@
                 和
                 <el-link href="https://github.com/sakaneko117" type="primary">sakaneko117</el-link>
                 (两位原作者) 提供了原版的完整实现 以及部分开发素材
-              </el-descriptions-item>
-              <el-descriptions-item label="贡献者">
+                <br>
                 <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
-                新增了音频倒放和倒放下载功能，并增加了更多原声大碟
+                新增了音频倒放和倒放下载功能 增加了更多原声大碟
               </el-descriptions-item>
             </el-descriptions>
           </el-col>
