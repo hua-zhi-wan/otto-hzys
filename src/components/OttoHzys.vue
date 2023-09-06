@@ -121,9 +121,9 @@
               </el-collapse>
               <el-divider/>
               <el-button-group>
-                <el-button @click="soundPlay()" type="success">播放</el-button>
-                <el-button @click="playReversed()" type="warning">倒放</el-button>
-                <el-button @click="soundStop()" type="danger">停止播放</el-button>
+                <DeBounceButton @click="soundPlay()" type="success">播放</DeBounceButton>
+                <DeBounceButton @click="playReversed()" type="warning">倒放</DeBounceButton>
+                <DeBounceButton @click="soundStop()" type="danger">停止播放</DeBounceButton>
                 <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
                 <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
               </el-button-group>
@@ -612,7 +612,7 @@ export default {
       audioSrc.value = src
       audioSrc.blob = undefined
       audioSrc.name = name
-      soundPlay()
+      //soundPlay() //点完后点播放容易导致快速重复点击播放的this.getRawSourceNode is not a function的bug，考虑移除
     }
 
     return {
