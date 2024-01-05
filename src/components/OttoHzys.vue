@@ -210,7 +210,7 @@
 <script>
 import Crunker from 'crunker'
 import {reactive, ref} from 'vue'
-import pinyin from "js-pinyin"
+import pinyin2 from "pinyin"
 import Pizzicato from 'pizzicato'
 import {ElMessage} from 'element-plus'
 
@@ -223,7 +223,7 @@ export default {
   setup() {
     const formData = reactive({
       text: '大家好啊，我是说的道理',
-      isYsdd: false,
+      isYsdd: true,
       isSliced: false,
     })
     const isComplete = ref(true)
@@ -242,13 +242,18 @@ export default {
           })
           .catch(err => console.error('加载初始配置文件失败', err))
       const ysddDict = new Map()
+      const ysddLastWordLengthIndex = new Map()
       fetch('/static/ysdd.json')
           .then((resp) => resp.json())
           .then((data) => {
             for (const [filename, textlist] of Object.entries(data)) {
               for (const text of textlist) {
-                const py = pinyin.getFullChars(text)
-                ysddDict.set(py, filename)
+                const py2 = pinyin2(text, {style: "normal"}).map(v => v[0])
+                ysddDict.set(py2.join(""), filename)
+                const lastword = py2[py2.length - 1]
+                !ysddLastWordLengthIndex.has(lastword) && ysddLastWordLengthIndex.set(lastword, new Map())
+                !ysddLastWordLengthIndex.get(lastword).has(py2.length) && ysddLastWordLengthIndex.get(lastword).set(py2.length, [])
+                ysddLastWordLengthIndex.get(lastword).get(py2.length).push(py2)
               }
               ysddShow.value.push(...textlist)
             }
@@ -258,82 +263,119 @@ export default {
       fetch('/static/chinglish.json')
           .then((resp) => resp.json())
           .then((data) => {
-            for (const [key, value] of Object.entries(data))
-              chinglish.set(key, value)
+            for (const [key, value] of Object.entries(data)) {
+              const newValue = value
+                  .match(/[A-Z][a-z]*/g)
+                  .map(v => ({p: v.toLowerCase(), t: null, isYsdd: false}))
+              chinglish.set(key.toUpperCase(), newValue)
+            }
           })
           .catch(err => console.error('加载中式英文读音配置失败', err))
       const tokenDict = new Map()
       return {
-        tokenSet, ysddDict, chinglish, tokenDict
+        tokenSet, ysddDict, ysddLastWordLengthIndex, chinglish, tokenDict
       }
     }
 
-    const {tokenSet, ysddDict, chinglish, tokenDict} = configInit()
+    const {tokenSet, ysddDict, ysddLastWordLengthIndex, chinglish, tokenDict} = configInit()
 
     async function generate() {
       // 判空
       if (formData.text === "") return
 
-      // 将英文字母转为拼音，保存为[xxx]，防止插入空白
-      const chinglishifyed = formData.text
-          .replace(/[a-zA-Z0-9.]/g, (m) => `<${m.toLowerCase().charCodeAt(0)}>`)
-          .replace(/<[0-9]+>/g, (m) => `[${chinglish.get(String.fromCharCode(parseInt(m.slice(1, -1))))}]`)
-      console.log(chinglishifyed)
+      // 小写字母转换为大写字母，非中英数字（含点）字符转换为空
+      // 大小写之后用来区分是 拼音 还是 chinglish字母
+      const characters = Array.from(formData.text
+          .toUpperCase()
+          .replace(/[^.0-9a-zA-Z\u4e00-\u9fff]+/g, " "));
+      const tonedPinyins = characters.map(v => {
+        const [, p, t] = (pinyin2(v, {style: "tone2"})[0][0].match(/^([a-z]+)([0-9]?)$/) || [null, v, null]);
+        return {p, t: {[null]:null, [""]:0, 1:1, 2:2, 3:3, 4:4}[t]}
+      });
+      console.log("tonedPinyins", tonedPinyins);
 
-      // 将汉字转为拼音，过滤不可识别标识
-      const purePinyin = pinyin.getFullChars(chinglishifyed).replace(/[^a-zA-Z[\]]/g, '');
-      // 将[xxx]放入短数组中
-      const pinyinTokens = purePinyin.split(/(?=\[)|(?<=])/).map(i => /\[.+]/.test(i) ? [i.slice(1, -1)] : i)
-      console.log(pinyinTokens)
-
-      // 匹配原声大碟，将完整句子替换为原声大碟
-      function ysdd(pinyinTokens) {
-        return pinyinTokens.map((item) => {
-          if (typeof (item) === 'string') {
-            return [...ysddDict.entries()].reduce((total, item) => {
-              const regexp = new RegExp(item[0], 'g')
-              return total.replace(regexp, `<${item[1]}>`)
-            }, item)
-          } else {
-            return item
+      // 无声调匹配活字印刷
+      function ysddParse(tonedPinyins) {
+        // 临时保存最优匹配信息和长度
+        const optMatch = [], optMatchCount = [];
+        function setOptMatch(fromIndex, matchCount, tonedPinyin, ysddKey) {
+          const toIndex = fromIndex + matchCount + !matchCount;
+          if (!optMatch[fromIndex]) {
+            optMatch[toIndex] = [{p: tonedPinyin?.p || ysddKey, t: tonedPinyin?.t || null, isYsdd: !!ysddKey}];
+            optMatchCount[toIndex] = matchCount;
+            return
           }
-        })
-      }
-
-      const tokens = formData.isYsdd ? (ysdd(pinyinTokens)) : pinyinTokens
-
-      // 切分小音频，将非整块的音频全部切开，整块音频不变
-      const cut = [];
-      for (const v of tokens) {
-        if (typeof (v) === 'string') {
-          const tmp = v.split(/(?=<)|(?<=>)|(?=[A-Z])/).filter(i => i !== '')
-          cut.push(...tmp)
-        } else {
-          const tmp = v[0].split(/(?=[A-Z])/)
-          cut.push(tmp)
+          const optNew = [];
+          optNew.push(...optMatch[fromIndex]);
+          const countNew = optMatchCount[fromIndex] + matchCount;
+          if (matchCount) {
+            optNew.push({p: ysddKey, t: null, isYsdd: true});
+          } else {
+            optNew.push({p: tonedPinyin.p, t: tonedPinyin.t, isYsdd: false});
+          }
+          optMatch[toIndex] = optNew;
+          optMatchCount[toIndex] = countNew;
         }
+        for (let i = 0; i < tonedPinyins.length; i += 1) {
+          const lastWord = tonedPinyins[i];
+          const lastWordYsdd = ysddLastWordLengthIndex.get(lastWord.p);
+          const optionalMatches = [];
+          if (lastWordYsdd) {
+            for (const length of lastWordYsdd.keys()) {
+              for (const woTonePinyins of lastWordYsdd.get(length)) {
+                let is_equal = true;
+                for (let j = 0; j < length - 1; j += 1){
+                  if (woTonePinyins[j] === tonedPinyins[i - length + j + 1]?.p) continue;
+                  is_equal = false;
+                  break;
+                }
+                if (!is_equal) continue;
+                optionalMatches.push({length, woTonePinyins});
+              }
+            }
+          }
+          optionalMatches.sort((a, b) => a.length - b.length);
+          // 将候选的匹配初始化为直接追加单字
+          // 即：如果所有匹配的selectMatchLength都比直接追加单字低就直接追加单字
+          let selectMatchLength = optMatchCount[i - 1] || 0, selectMatch = null;
+          for (const {length, woTonePinyins} of optionalMatches) {
+            if ((optMatchCount[i - length] || 0) + length < selectMatchLength) continue;
+            selectMatchLength = (optMatchCount[i - length] || 0) + length;
+            selectMatch = woTonePinyins;
+          }
+          if (!selectMatch) {
+            setOptMatch(i - 1, 0, lastWord, null);
+          } else {
+            setOptMatch(i - selectMatch.length, selectMatch.length, null, selectMatch.join(""));
+          }
+        }
+        return optMatch.pop()
       }
-      console.log('cut', cut)
+
+      // 数字和英文字母（含.）转拼音
+      const ysdded = ysddParse(tonedPinyins);
+      console.log("ysdded", ysdded);
+      const chinglishfied = ysdded.reduce((prev, v) => {
+        if(!v.p.match(/^[.A-Z0-9]$/)) {
+          prev.push(v);
+          return prev
+        }
+        prev.push(...chinglish.get(v.p));
+        return prev
+      }, []);
+      console.log("chinglishfied", chinglishfied);
 
       // 生成最终的可构造音频序列
-      function slice(cut, flag) {
-        const tmp = [];
-        for (const v of cut) {
-          if (typeof (v) === 'string') {
-            tmp.push(v)
-          } else {
-            tmp.push(...v)
-          }
-          if (flag) tmp.push('_')
-        }
-        return tmp
-      }
-
-      const sliced = slice(cut, formData.isSliced)
-          .map(i => i.toLowerCase())
-          .filter(i => tokenSet.has(i) || /<.+>|_/.test(i))
-      console.log('sliced', sliced)
-
+      // 合并连续出现的短暂停顿
+      const sliced = chinglishfied.reduce((prev, {p, isYsdd}) => {
+        if (isYsdd) prev.push(`<${ysddDict.get(p)}>`)
+        else if (tokenSet.has(p)) prev.push(p);
+        else if (prev[prev.length - 1] === "_") return prev;
+        else prev.push("_");
+        if (formData.isSliced) prev.push("_");
+        return prev
+      }, []);
+      console.log("sliced", sliced);
 
       // 等待处理
       isComplete.value = false
