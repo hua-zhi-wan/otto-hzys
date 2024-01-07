@@ -628,91 +628,15 @@ export default {
 
     function downloadReversed() {
       if (audioSrc.blob !== undefined) {
-        var audioContext = Pizzicato.context;
-        var request = new XMLHttpRequest();
-        request.open('GET', audioSrc.value, true);
-        request.responseType = 'arraybuffer';
-        request.onload = function () {
-          audioContext.decodeAudioData(request.response, function (buffer) {
-            var reversedBuffer = reverseBuffer(buffer);
-            var blob = bufferToWave(reversedBuffer, buffer.length);
-            crunker.download(blob, audioSrc.name + '_reversed');
-          });
-        };
-        request.send();
+        crunker
+            .fetchAudio(audioSrc.blob)
+            .then((audioBuffers) => {
+              audioBuffers[0].getChannelData(0).reverse();
+              return audioBuffers[0]
+            })
+            .then((reversedAudioBuffer) => crunker.export(reversedAudioBuffer, 'audio/wav'))
+            .then((output) => crunker.download(output.blob, `${audioSrc.name}_reversed`));
       }
-    }
-
-    function bufferToWave(abuffer, len) {
-      var numOfChan = abuffer.numberOfChannels,
-          length = len * numOfChan * 2 + 44,
-          buffer = new ArrayBuffer(length),
-          view = new DataView(buffer),
-          channels = [],
-          i,
-          sample,
-          offset = 0,
-          pos = 0;
-
-      setUint32(0x46464952); // "RIFF"
-      setUint32(length - 8); // file length - 8
-      setUint32(0x45564157); // "WAVE"
-
-      setUint32(0x20746d66); // fmt子块
-      setUint32(16); // length = 16
-      setUint16(1); // PCM (uncompressed)
-      setUint16(numOfChan);
-      setUint32(abuffer.sampleRate);
-      setUint32(abuffer.sampleRate * 2 * numOfChan);
-      setUint16(numOfChan * 2);
-      setUint16(16);
-
-      setUint32(0x61746164);
-      setUint32(length - pos - 4);
-
-      for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
-
-      while (pos < length) {
-        for (i = 0; i < numOfChan; i++) {
-          // interleave channels
-          sample = Math.max(-1, Math.min(1, channels[i][offset]));
-          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-          view.setInt16(pos, sample, true);
-          pos += 2;
-        }
-        offset++;
-      }
-
-      // create Blob
-      return new Blob([buffer], {type: "audio/wav"});
-
-      function setUint16(data) {
-        view.setUint16(pos, data, true);
-        pos += 2;
-      }
-
-      function setUint32(data) {
-        view.setUint32(pos, data, true);
-        pos += 4;
-      }
-    }
-
-    function reverseBuffer(buffer) {
-      var audioContext = Pizzicato.context;
-      var numberOfChannels = buffer.numberOfChannels;
-      var channelData = [];
-      for (var i = 0; i < numberOfChannels; i++) {
-        channelData[i] = buffer.getChannelData(i).reverse();
-      }
-      var reversedBuffer = audioContext.createBuffer(
-          numberOfChannels,
-          buffer.length,
-          buffer.sampleRate
-      );
-      for (var j = 0; j < numberOfChannels; j++) {
-        reversedBuffer.getChannelData(j).set(channelData[j]);
-      }
-      return reversedBuffer;
     }
 
     function showArt(src, name) {
