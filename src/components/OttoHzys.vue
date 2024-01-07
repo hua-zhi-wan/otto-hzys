@@ -121,8 +121,8 @@
               </el-collapse>
               <el-divider/>
               <el-button-group>
-                <DeBounceButton @click="soundPlay()" type="success">播放</DeBounceButton>
-                <DeBounceButton @click="playReversed()" type="warning">倒放</DeBounceButton>
+                <DeBounceButton @click="soundPlay({isReversed: false})" type="success">播放</DeBounceButton>
+                <DeBounceButton @click="soundPlay({isReversed: true})" type="warning">倒放</DeBounceButton>
                 <DeBounceButton @click="soundStop()" type="danger">停止播放</DeBounceButton>
                 <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
                 <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
@@ -575,7 +575,7 @@ export default {
       }
     }
 
-    function soundPlay() {
+    function soundPlay({ isReversed }) {
       if (audioSrc.value !== '#') {
         if (sound.value !== undefined && sound.value.playing) {
           sound.value.stop()
@@ -587,8 +587,13 @@ export default {
             path: audioSrc.value
           }
         }, () => {
-          for (const eff of sound.effects) {
-            sound.value.addEffect(eff)
+          sound.effects.forEach(eff => sound.value.addEffect(eff));
+          // 如果是倒放
+          if (isReversed === true) {
+            const refAudioBuffer = sound.value.getRawSourceNode().buffer;
+            for (let c = 0; c < refAudioBuffer.numberOfChannels; c += 1) {
+              refAudioBuffer.getChannelData(c).reverse();
+            }
           }
           sound.value.play()
         })
@@ -604,35 +609,6 @@ export default {
     function downloadSound() {
       if (audioSrc.blob !== undefined) {
         crunker.download(audioSrc.blob, audioSrc.name)
-      }
-    }
-
-    function playReversed() {
-      if (audioSrc.value !== '#') {
-        if (sound.value !== undefined && sound.value.playing) {
-          sound.value.stop();
-        }
-        sound.value = new Pizzicato.Sound({
-          source: 'file',
-          options: {
-            path: audioSrc.value
-          }
-        }, () => {
-          var audioContext = Pizzicato.context;
-          var source = audioContext.createBufferSource();
-
-          var request = new XMLHttpRequest();
-          request.open('GET', audioSrc.value, true);
-          request.responseType = 'arraybuffer';
-          request.onload = function () {
-            audioContext.decodeAudioData(request.response, function (buffer) {
-              source.buffer = reverseBuffer(buffer);
-              source.connect(audioContext.destination);
-              source.start(0);
-            });
-          };
-          request.send();
-        });
       }
     }
 
@@ -742,7 +718,6 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
-      playReversed,
       downloadReversed,
       audioEffects,
       soundStop,
