@@ -481,10 +481,24 @@ export default {
         })
       })
 
+      // 将多个声道变为单声道
+      const audioCtx = new AudioContext();
+      function sliceToOneChannel(audioBuffer) {
+        // 判断是否有多个声道
+        if (audioBuffer.numberOfChannels === 1) return audioBuffer;
+        // 如果有多个声道，只保留第一个声道的数据
+        const newAudioBuffer = audioCtx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+        newAudioBuffer.copyToChannel(audioBuffer.getChannelData(0), 0);
+        return newAudioBuffer;
+      }
       // 音频拼接
       await crunker
           .fetchAudio(...sliced.map(v => tokenDict.get(v)))
-          .then((buffers) => crunker.concatAudio(buffers))
+          .then((buffers) => {
+            // 将多个声道变为单声道
+            buffers = buffers.map(sliceToOneChannel);
+            return crunker.concatAudio(buffers)
+          })
           .then((merged) => crunker.export(merged, 'audio/wav'))
           .then((output) => {
             audioSrc.value = output.url
