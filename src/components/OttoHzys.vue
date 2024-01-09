@@ -121,8 +121,8 @@
               </el-collapse>
               <el-divider/>
               <el-button-group>
-                <DeBounceButton @click="soundPlay()" type="success">播放</DeBounceButton>
-                <DeBounceButton @click="playReversed()" type="warning">倒放</DeBounceButton>
+                <DeBounceButton @click="soundPlay({isReversed: false})" type="success">播放</DeBounceButton>
+                <DeBounceButton @click="soundPlay({isReversed: true})" type="warning">倒放</DeBounceButton>
                 <DeBounceButton @click="soundStop()" type="danger">停止播放</DeBounceButton>
                 <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
                 <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
@@ -481,10 +481,24 @@ export default {
         })
       })
 
+      // 将多个声道变为单声道
+      const audioCtx = new AudioContext();
+      function sliceToOneChannel(audioBuffer) {
+        // 判断是否有多个声道
+        if (audioBuffer.numberOfChannels === 1) return audioBuffer;
+        // 如果有多个声道，只保留第一个声道的数据
+        const newAudioBuffer = audioCtx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+        newAudioBuffer.copyToChannel(audioBuffer.getChannelData(0), 0);
+        return newAudioBuffer;
+      }
       // 音频拼接
       await crunker
           .fetchAudio(...sliced.map(v => tokenDict.get(v)))
-          .then((buffers) => crunker.concatAudio(buffers))
+          .then((buffers) => {
+            // 将多个声道变为单声道
+            buffers = buffers.map(sliceToOneChannel);
+            return crunker.concatAudio(buffers)
+          })
           .then((merged) => crunker.export(merged, 'audio/wav'))
           .then((output) => {
             audioSrc.value = output.url
@@ -575,7 +589,7 @@ export default {
       }
     }
 
-    function soundPlay() {
+    function soundPlay({ isReversed }) {
       if (audioSrc.value !== '#') {
         if (sound.value !== undefined && sound.value.playing) {
           sound.value.stop()
@@ -587,8 +601,13 @@ export default {
             path: audioSrc.value
           }
         }, () => {
-          for (const eff of sound.effects) {
-            sound.value.addEffect(eff)
+          sound.effects.forEach(eff => sound.value.addEffect(eff));
+          // 如果是倒放
+          if (isReversed === true) {
+            const refAudioBuffer = sound.value.getRawSourceNode().buffer;
+            for (let c = 0; c < refAudioBuffer.numberOfChannels; c += 1) {
+              refAudioBuffer.getChannelData(c).reverse();
+            }
           }
           sound.value.play()
         })
@@ -607,122 +626,17 @@ export default {
       }
     }
 
-    function playReversed() {
-      if (audioSrc.value !== '#') {
-        if (sound.value !== undefined && sound.value.playing) {
-          sound.value.stop();
-        }
-        sound.value = new Pizzicato.Sound({
-          source: 'file',
-          options: {
-            path: audioSrc.value
-          }
-        }, () => {
-          var audioContext = Pizzicato.context;
-          var source = audioContext.createBufferSource();
-
-          var request = new XMLHttpRequest();
-          request.open('GET', audioSrc.value, true);
-          request.responseType = 'arraybuffer';
-          request.onload = function () {
-            audioContext.decodeAudioData(request.response, function (buffer) {
-              source.buffer = reverseBuffer(buffer);
-              source.connect(audioContext.destination);
-              source.start(0);
-            });
-          };
-          request.send();
-        });
-      }
-    }
-
     function downloadReversed() {
       if (audioSrc.blob !== undefined) {
-        var audioContext = Pizzicato.context;
-        var request = new XMLHttpRequest();
-        request.open('GET', audioSrc.value, true);
-        request.responseType = 'arraybuffer';
-        request.onload = function () {
-          audioContext.decodeAudioData(request.response, function (buffer) {
-            var reversedBuffer = reverseBuffer(buffer);
-            var blob = bufferToWave(reversedBuffer, buffer.length);
-            crunker.download(blob, audioSrc.name + '_reversed');
-          });
-        };
-        request.send();
+        crunker
+            .fetchAudio(audioSrc.blob)
+            .then((audioBuffers) => {
+              audioBuffers[0].getChannelData(0).reverse();
+              return audioBuffers[0]
+            })
+            .then((reversedAudioBuffer) => crunker.export(reversedAudioBuffer, 'audio/wav'))
+            .then((output) => crunker.download(output.blob, `${audioSrc.name}_reversed`));
       }
-    }
-
-    function bufferToWave(abuffer, len) {
-      var numOfChan = abuffer.numberOfChannels,
-          length = len * numOfChan * 2 + 44,
-          buffer = new ArrayBuffer(length),
-          view = new DataView(buffer),
-          channels = [],
-          i,
-          sample,
-          offset = 0,
-          pos = 0;
-
-      setUint32(0x46464952); // "RIFF"
-      setUint32(length - 8); // file length - 8
-      setUint32(0x45564157); // "WAVE"
-
-      setUint32(0x20746d66); // fmt子块
-      setUint32(16); // length = 16
-      setUint16(1); // PCM (uncompressed)
-      setUint16(numOfChan);
-      setUint32(abuffer.sampleRate);
-      setUint32(abuffer.sampleRate * 2 * numOfChan);
-      setUint16(numOfChan * 2);
-      setUint16(16);
-
-      setUint32(0x61746164);
-      setUint32(length - pos - 4);
-
-      for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
-
-      while (pos < length) {
-        for (i = 0; i < numOfChan; i++) {
-          // interleave channels
-          sample = Math.max(-1, Math.min(1, channels[i][offset]));
-          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-          view.setInt16(pos, sample, true);
-          pos += 2;
-        }
-        offset++;
-      }
-
-      // create Blob
-      return new Blob([buffer], {type: "audio/wav"});
-
-      function setUint16(data) {
-        view.setUint16(pos, data, true);
-        pos += 2;
-      }
-
-      function setUint32(data) {
-        view.setUint32(pos, data, true);
-        pos += 4;
-      }
-    }
-
-    function reverseBuffer(buffer) {
-      var audioContext = Pizzicato.context;
-      var numberOfChannels = buffer.numberOfChannels;
-      var channelData = [];
-      for (var i = 0; i < numberOfChannels; i++) {
-        channelData[i] = buffer.getChannelData(i).reverse();
-      }
-      var reversedBuffer = audioContext.createBuffer(
-          numberOfChannels,
-          buffer.length,
-          buffer.sampleRate
-      );
-      for (var j = 0; j < numberOfChannels; j++) {
-        reversedBuffer.getChannelData(j).set(channelData[j]);
-      }
-      return reversedBuffer;
     }
 
     function showArt(src, name) {
@@ -742,7 +656,6 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
-      playReversed,
       downloadReversed,
       audioEffects,
       soundStop,
