@@ -426,7 +426,7 @@ export default {
         }
         return optMatch.pop()
       }
-      const ysdded = ysddParse(tonedPinyins);
+      const ysdded = formData.isYsdd ? ysddParse(tonedPinyins) : tonedPinyins;
 
       // 数字和英文字母（含.）转拼音
       console.log("20240106 ysdded", ysdded);
