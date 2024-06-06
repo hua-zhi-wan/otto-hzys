@@ -180,11 +180,11 @@
                 的
                 <el-link href="https://space.bilibili.com/496956009" type="primary">Bilibili</el-link>
                 和
-                <el-link href="https://github.com/HanaYabuki" type="primary">Github</el-link>
+                <el-link href="https://github.com/hua-zhi-wan" type="primary">Github</el-link>
               </el-descriptions-item>
               <el-descriptions-item label="Github仓库">
-                <el-link href="https://github.com/HanaYabuki/otto-hzys/tree/master" type="primary">
-                  HanaYabuki/otto-hzys
+                <el-link href="https://github.com/hua-zhi-wan/otto-hzys/tree/master" type="primary">
+                  hua-zhi-wan/otto-hzys
                 </el-link>
               </el-descriptions-item>
               <el-descriptions-item label="鸣谢">
