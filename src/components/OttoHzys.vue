@@ -149,7 +149,7 @@
                     <div>
                       原声大碟模式：当匹配到特定拼音会使用原声大碟，当前版本的原声大碟包括以下内容
                       <ul>
-                        <li v-for="item of ysddShow.value" :key="item">{{ item }}</li>
+                        <li v-for="item of ysddShow.value" :key="item"><DeBounceButton @click="PreviewPlay(item)" type="primary">试听</DeBounceButton><ul><li v-for="nameitem of item.name" :key="nameitem">{{nameitem}}</li></ul><br></li>
                       </ul>
                     </div>
                   </li>
@@ -233,7 +233,7 @@ export default {
     const isComplete = ref(true)
     const version = ref('v1.2')
     const audioSrc = reactive({value: '#', blob: undefined, name: '#'})
-    const ysddShow = reactive({value: []})
+    const ysddShow = reactive({value: [{name:undefined,filename:undefined}]})
 
     function configInit() {
       const tokenSet = new Set()
@@ -254,9 +254,12 @@ export default {
               for (const text of textlist) {
                 const py = pinyin.getFullChars(text)
                 ysddDict.set(py, filename)
+                
               }
-              ysddShow.value.push(...textlist)
+              ysddShow.value.push({name:textlist,filename:filename})
+
             }
+            ysddShow.value.splice(0, 1);
             for (const [filename, textlist] of Object.entries(data)) {
               for (const text of textlist) {
                 const py2 = pinyin2(text, {style: "normal"}).map(v => v[0])
@@ -591,6 +594,21 @@ export default {
         sound.effects.push(delay)
       }
     }
+     function PreviewPlay({ filename }) {
+      const PreviewSrc = ref(`${YSDD_TOKEN_PATH}/${filename}.mp3`)
+      const prsound = {value: undefined, effects: []}
+      if (PreviewSrc.value !== '#') {
+        prsound.value = new Pizzicato.Sound({
+          source: 'file',
+          options: {
+            path: PreviewSrc.value
+          }
+        }, () => {
+          console.log("now playing "+PreviewSrc.value)
+          prsound.value.play()
+        })
+      }
+    } 
 
     function soundPlay({ isReversed }) {
       if (audioSrc.value !== '#') {
@@ -659,6 +677,7 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
+      PreviewPlay,
       downloadReversed,
       audioEffects,
       soundStop,
