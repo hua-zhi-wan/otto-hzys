@@ -233,7 +233,7 @@ export default {
     const isComplete = ref(true)
     const version = ref('v1.2')
     const audioSrc = reactive({value: '#', blob: undefined, name: '#'})
-    const ysddShow = reactive({value: [{name:undefined,filename:undefined}]})
+    const ysddShow = reactive({value: []})
 
     function configInit() {
       const tokenSet = new Set()
@@ -259,7 +259,6 @@ export default {
               ysddShow.value.push({name:textlist,filename:filename})
 
             }
-            ysddShow.value.splice(0, 1);
             for (const [filename, textlist] of Object.entries(data)) {
               for (const text of textlist) {
                 const py2 = pinyin2(text, {style: "normal"}).map(v => v[0])
