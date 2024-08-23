@@ -149,7 +149,7 @@
                     <div>
                       原声大碟模式：当匹配到特定拼音会使用原声大碟，当前版本的原声大碟包括以下内容
                       <ul>
-                        <li v-for="item of ysddShow.value" :key="item">{{ item }}</li>
+                        <li v-for="item of ysddShow.value" :key="item"><DeBounceButton @click="PreviewPlay(item)" type="primary">试听</DeBounceButton><ul><li v-for="nameitem of item.name" :key="nameitem">{{nameitem}}</li></ul><br></li>
                       </ul>
                     </div>
                   </li>
@@ -254,8 +254,10 @@ export default {
               for (const text of textlist) {
                 const py = pinyin.getFullChars(text)
                 ysddDict.set(py, filename)
+                
               }
-              ysddShow.value.push(...textlist)
+              ysddShow.value.push({name:textlist,filename:filename})
+
             }
             for (const [filename, textlist] of Object.entries(data)) {
               for (const text of textlist) {
@@ -591,6 +593,21 @@ export default {
         sound.effects.push(delay)
       }
     }
+     function PreviewPlay({ filename }) {
+      const PreviewSrc = ref(`${YSDD_TOKEN_PATH}/${filename}.mp3`)
+      const prsound = {value: undefined, effects: []}
+      if (PreviewSrc.value !== '#') {
+        prsound.value = new Pizzicato.Sound({
+          source: 'file',
+          options: {
+            path: PreviewSrc.value
+          }
+        }, () => {
+          console.log("now playing "+PreviewSrc.value)
+          prsound.value.play()
+        })
+      }
+    } 
 
     function soundPlay({ isReversed }) {
       if (audioSrc.value !== '#') {
@@ -659,6 +676,7 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
+      PreviewPlay,
       downloadReversed,
       audioEffects,
       soundStop,
