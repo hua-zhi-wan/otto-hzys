@@ -208,32 +208,32 @@
                 </div>
               </template>
               <el-descriptions title="作品信息" border :column="2">
-              <el-descriptions-item label="作者">
-                会唱歌的花枝丸
-                的
-                <el-link href="https://space.bilibili.com/496956009" type="primary">Bilibili</el-link>
-                和
-                <el-link href="https://github.com/hua-zhi-wan" type="primary">Github</el-link>
-              </el-descriptions-item>
-              <el-descriptions-item label="Github仓库">
-                <el-link href="https://github.com/hua-zhi-wan/otto-hzys/tree/master" type="primary">
-                  hua-zhi-wan/otto-hzys
-                </el-link>
-              </el-descriptions-item>
-              <el-descriptions-item label="鸣谢">
-                <el-link href="https://github.com/DSP-8192" type="primary">DSP-8192</el-link>
-                和
-                <el-link href="https://github.com/sakaneko117" type="primary">sakaneko117</el-link>
-                (两位原作者) 提供了原版的完整实现 以及部分开发素材
-                <br />
-                <el-link href="https://github.com/fivepotato" type="primary">fivepotato</el-link>
-                重构了原声大碟匹配、音频倒放等诸多算法 修复了历史罪人“TheUnknownThing”造成的倒放音频失控问题
-                <br />
-                <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
-                新增了音频倒放和倒放下载功能 增加了更多原声大碟
-              </el-descriptions-item>
-            </el-descriptions>
-              </el-card>
+                <el-descriptions-item label="作者">
+                  会唱歌的花枝丸
+                  的
+                  <el-link href="https://space.bilibili.com/496956009" type="primary">Bilibili</el-link>
+                  和
+                  <el-link href="https://github.com/hua-zhi-wan" type="primary">Github</el-link>
+                </el-descriptions-item>
+                <el-descriptions-item label="Github仓库">
+                  <el-link href="https://github.com/hua-zhi-wan/otto-hzys/tree/master" type="primary">
+                    hua-zhi-wan/otto-hzys
+                  </el-link>
+                </el-descriptions-item>
+                <el-descriptions-item label="鸣谢">
+                  <el-link href="https://github.com/DSP-8192" type="primary">DSP-8192</el-link>
+                  和
+                  <el-link href="https://github.com/sakaneko117" type="primary">sakaneko117</el-link>
+                  (两位原作者) 提供了原版的完整实现 以及部分开发素材
+                  <br />
+                  <el-link href="https://github.com/fivepotato" type="primary">fivepotato</el-link>
+                  重构了原声大碟匹配、音频倒放等诸多算法 修复了历史罪人“TheUnknownThing”造成的倒放音频失控问题
+                  <br />
+                  <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
+                  新增了音频倒放和倒放下载功能 增加了更多原声大碟
+                </el-descriptions-item>
+              </el-descriptions>
+            </el-card>
           </el-col>
         </el-row>
       </el-main>
@@ -770,13 +770,12 @@ h2 {
 }
 
 
-.blur-card  {
+.blur-card {
   backdrop-filter: blur(15px) brightness(90%);
   background-color: rgba(255, 255, 255, 0.2);
   border: hidden;
   --el-card-border-color: hidden;
   --el-text-color-regular: #FFFFFF
-
     /* border-radius: 10px */
 }
 
@@ -786,12 +785,7 @@ h2 {
 }
 
 
-.el-input__wrapper{
-  background-color: #ff000000;
-}
-.el-input-number__decrease, .el-input-number__increase{
-  background: #ff000000;
-}
+
 .el-collapse {
   --el-collapse-header-bg-color: hidden;
   --el-collapse-border-color: #ebeef524;
@@ -802,14 +796,16 @@ h2 {
 .el-slider {
   --el-slider-runway-bg-color: #e4e7ed78;
   --el-slider-main-bg-color: #409effbf;
-  
+
 }
+
 .el-descriptions {
-  --el-fill-color-blank:#ffffff33;
-  --el-fill-color-light:#f5f7fa57;
-  --el-text-color-primary:white;
-  
+  --el-fill-color-blank: #67676733;
+  --el-fill-color-light: #f5f7fa57;
+  --el-text-color-primary: white;
+
 }
+
 .bk-img {
   width: 100%;
   height: 100%;
@@ -819,4 +815,11 @@ h2 {
   background-repeat: no-repeat;
 
 }
+</style>
+<style>
+.el-input-number {
+  --el-fill-color-blank: #ff000000;
+  --el-fill-color-light : #ff000000 !important;
+}
+
 </style>
