@@ -4,160 +4,161 @@
     <el-container>
       <el-header>
         <h2>
-          <el-avatar src="/static/img/lizi.jpg" size="small"></el-avatar>
+          <el-avatar src="static/img/lizi.jpg" size="small"></el-avatar>
           大电老师活字印刷 <small> 纯前端版{{ version }}</small>
         </h2>
       </el-header>
       <el-main>
         <el-row>
+          <el-row></el-row>
           <el-col :lg="3" :xl="4">
           </el-col>
           <el-col :lg="18" :xl="16">
-            <el-card class="blur-card">
-              <template #header>
-                <div class="card-header">
-                  <span>参数设置</span>
-                </div>
-              </template>
-              <el-form :model="formData" label-width="auto" label-position="left">
-                <el-form-item label="转换文本">
-                  <el-input v-model="formData.text" type="textarea" rows="4" />
-                </el-form-item>
-                <el-form-item label="原声大碟模式">
-                  <el-switch v-model="formData.isYsdd" />
-                </el-form-item>
-                <el-form-item label="字间添加短暂停顿">
-                  <el-switch v-model="formData.isSliced" />
-                </el-form-item>
-                <el-form-item label="生成">
-                  <el-button type="primary" @click="generate" :loading="!isComplete">{{
-                    isComplete ? "生成otto鬼叫" : "生成中"
-                  }}
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-card>
-            <br>
-            <br>
-            <br>
-            <el-card class="blur-card" :header="'效果组 - 已加载音频：' + audioSrc.name">
-              <template #header>
-                <div class="card-header">
-                  <span>生成音频</span>
-                </div>
-              </template>
-              <el-collapse>
-                <el-collapse-item title="均衡">
-                  <el-form :model="audioEffects.eq" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.eq.enable" />
+            <el-row>
+              <el-col :lg="14">
+                <el-card class="blur-card">
+                  <template #header>
+                    <div class="card-header">
+                      <span>参数设置</span>
+                    </div>
+                  </template>
+                  <el-form :model="formData" label-width="auto" label-position="left">
+                    <el-form-item label="转换文本">
+                      <el-input v-model="formData.text" type="textarea" rows="10" />
                     </el-form-item>
-                    <el-form-item label="低切频率">
-                      <el-slider v-model="audioEffects.eq.options.lowFrequency" show-input :min="0" :max="1000"
-                        :step="1" />
+                    <el-form-item label="原声大碟模式">
+                      <el-switch v-model="formData.isYsdd" />
                     </el-form-item>
-                    <el-form-item label="高切频率">
-                      <el-slider v-model="audioEffects.eq.options.highFrequency" show-input :min="10000" :max="22050"
-                        :step="10" />
+                    <el-form-item label="字间添加短暂停顿">
+                      <el-switch v-model="formData.isSliced" />
                     </el-form-item>
-                    <el-form-item label="低切锐度">
-                      <el-slider v-model="audioEffects.eq.options.lowPeak" :max="20" :min="0.001" :step="0.001"
-                        show-input />
-                    </el-form-item>
-                    <el-form-item label="高切锐度">
-                      <el-slider v-model="audioEffects.eq.options.highPeak" :max="20" :min="0.001" :step="0.001"
-                        show-input />
+                    <el-form-item label="生成">
+                      <el-button type="primary" @click="generate" :loading="!isComplete">{{
+                        isComplete ? "生成otto鬼叫" : "生成中"
+                      }}
+                      </el-button>
                     </el-form-item>
                   </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="压缩">
-                  <el-form :model="audioEffects.comp" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.comp.enable" />
-                    </el-form-item>
-                    <el-form-item label="阈值">
-                      <el-slider v-model="audioEffects.comp.options.threshold" show-input :max="0" :min="-50"
-                        :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="拐点">
-                      <el-slider v-model="audioEffects.comp.options.knee" show-input :min="0" :max="40" :step="1" />
-                    </el-form-item>
-                    <el-form-item label="触发时间">
-                      <el-slider v-model="audioEffects.comp.options.attack" show-input :min="0" :max="1" :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="释放时间">
-                      <el-slider v-model="audioEffects.comp.options.release" show-input :min="0" :max="1"
-                        :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="压缩比">
-                      <el-slider v-model="audioEffects.comp.options.ratio" show-input :min="1" :max="20" :step="0.01" />
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="延迟">
-                  <el-form :model="audioEffects.delay" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.delay.enable" />
-                    </el-form-item>
-                    <el-form-item label="反弹">
-                      <el-slider v-model="audioEffects.delay.options.feedback" show-input :min="0" :max="0.6"
-                        :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="时长">
-                      <el-slider v-model="audioEffects.delay.options.time" show-input :min="0" :max="1" :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="干湿比">
-                      <el-slider v-model="audioEffects.delay.options.mix" show-input :min="0" :max="1" :step="0.01" />
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-                <el-collapse-item title="混响">
-                  <el-form :model="audioEffects.reverb" label-width="auto" label-position="left" @change="applyEffects">
-                    <el-form-item label="开启">
-                      <el-switch v-model="audioEffects.reverb.enable" />
-                    </el-form-item>
-                    <el-form-item label="时长">
-                      <el-slider v-model="audioEffects.reverb.options.time" show-input :min="0" :max="3" :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="衰减">
-                      <el-slider v-model="audioEffects.reverb.options.decay" show-input :min="0" :max="3"
-                        :step="0.01" />
-                    </el-form-item>
-                    <el-form-item label="干湿比">
-                      <el-slider v-model="audioEffects.reverb.options.mix" show-input :min="0" :max="1" :step="0.01" />
-                    </el-form-item>
-                  </el-form>
-                </el-collapse-item>
-              </el-collapse>
-              <el-divider />
-              <el-button-group>
-                <DeBounceButton @click="soundPlay({ isReversed: false })" type="success">播放</DeBounceButton>
-                <DeBounceButton @click="soundPlay({ isReversed: true })" type="warning">倒放</DeBounceButton>
-                <DeBounceButton @click="soundStop()" type="danger">停止播放</DeBounceButton>
-                <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
-                <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
-              </el-button-group>
-            </el-card>
-            <br>
-            <br>
-            <br>
-            <el-card class="blur-card">
-              <template #header>
-                <div class="card-header">
-                  <span>艺术殿堂</span>
-                </div>
-              </template>
-              <el-space wrap>
-                <el-avatar src="/static/img/lizi.jpg" size="large"
-                  @click="showArt('/static/music/Bones - 欠债调音师.mp3', 'Bones - 欠债调音师')" />
-                <el-avatar src="/static/img/rk5.jpg" size="large"
-                  @click="showArt('/static/music/I Got Smoke - V在燃烧.mp3', 'I Got Smoke - V在燃烧')" />
-                <el-avatar src="/static/img/ccvbn.jpg" size="large"
-                  @click="showArt('/static/music/Ccvbn -（完）电棍：波西唢呐狂想曲.mp3', 'Ccvbn -（完）电棍：♿波西唢呐狂想曲♿')" />
-                <div>点击头像听音乐</div>
-              </el-space>
-            </el-card>
-            <br>
+                </el-card>
+              </el-col>
+              <el-col :lg="1">
+                <br>
+                <br>
+              </el-col>
+              <el-col :lg="9">
+                <el-card class="blur-card">
+                  <template #header>
+                    <div class="card-header">
+                      <span>生成音频</span>
+                    </div>
+                  </template>
+                  <span>{{ '效果组 - 已加载音频：' + audioSrc.name }}</span>
+                  <el-divider />
+                  <el-collapse>
+                    <el-collapse-item title="均衡">
+                      <el-form :model="audioEffects.eq" label-width="auto" label-position="left" @change="applyEffects">
+                        <el-form-item label="开启">
+                          <el-switch v-model="audioEffects.eq.enable" />
+                        </el-form-item>
+                        <el-form-item label="低切频率">
+                          <el-slider v-model="audioEffects.eq.options.lowFrequency" show-input :min="0" :max="1000"
+                            :step="1" />
+                        </el-form-item>
+                        <el-form-item label="高切频率">
+                          <el-slider v-model="audioEffects.eq.options.highFrequency" show-input :min="10000"
+                            :max="22050" :step="10" />
+                        </el-form-item>
+                        <el-form-item label="低切锐度">
+                          <el-slider v-model="audioEffects.eq.options.lowPeak" :max="20" :min="0.001" :step="0.001"
+                            show-input />
+                        </el-form-item>
+                        <el-form-item label="高切锐度">
+                          <el-slider v-model="audioEffects.eq.options.highPeak" :max="20" :min="0.001" :step="0.001"
+                            show-input />
+                        </el-form-item>
+                      </el-form>
+                    </el-collapse-item>
+                    <el-collapse-item title="压缩">
+                      <el-form :model="audioEffects.comp" label-width="auto" label-position="left"
+                        @change="applyEffects">
+                        <el-form-item label="开启">
+                          <el-switch v-model="audioEffects.comp.enable" />
+                        </el-form-item>
+                        <el-form-item label="阈值">
+                          <el-slider v-model="audioEffects.comp.options.threshold" show-input :max="0" :min="-50"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="拐点">
+                          <el-slider v-model="audioEffects.comp.options.knee" show-input :min="0" :max="40" :step="1" />
+                        </el-form-item>
+                        <el-form-item label="触发时间">
+                          <el-slider v-model="audioEffects.comp.options.attack" show-input :min="0" :max="1"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="释放时间">
+                          <el-slider v-model="audioEffects.comp.options.release" show-input :min="0" :max="1"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="压缩比">
+                          <el-slider v-model="audioEffects.comp.options.ratio" show-input :min="1" :max="20"
+                            :step="0.01" />
+                        </el-form-item>
+                      </el-form>
+                    </el-collapse-item>
+                    <el-collapse-item title="延迟">
+                      <el-form :model="audioEffects.delay" label-width="auto" label-position="left"
+                        @change="applyEffects">
+                        <el-form-item label="开启">
+                          <el-switch v-model="audioEffects.delay.enable" />
+                        </el-form-item>
+                        <el-form-item label="反弹">
+                          <el-slider v-model="audioEffects.delay.options.feedback" show-input :min="0" :max="0.6"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="时长">
+                          <el-slider v-model="audioEffects.delay.options.time" show-input :min="0" :max="1"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="干湿比">
+                          <el-slider v-model="audioEffects.delay.options.mix" show-input :min="0" :max="1"
+                            :step="0.01" />
+                        </el-form-item>
+                      </el-form>
+                    </el-collapse-item>
+                    <el-collapse-item title="混响">
+                      <el-form :model="audioEffects.reverb" label-width="auto" label-position="left"
+                        @change="applyEffects">
+                        <el-form-item label="开启">
+                          <el-switch v-model="audioEffects.reverb.enable" />
+                        </el-form-item>
+                        <el-form-item label="时长">
+                          <el-slider v-model="audioEffects.reverb.options.time" show-input :min="0" :max="3"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="衰减">
+                          <el-slider v-model="audioEffects.reverb.options.decay" show-input :min="0" :max="3"
+                            :step="0.01" />
+                        </el-form-item>
+                        <el-form-item label="干湿比">
+                          <el-slider v-model="audioEffects.reverb.options.mix" show-input :min="0" :max="1"
+                            :step="0.01" />
+                        </el-form-item>
+                      </el-form>
+                    </el-collapse-item>
+                  </el-collapse>
+                  <el-divider />
+                  <el-button-group>
+                    <DeBounceButton @click="soundPlay({ isReversed: false })" type="success">播放</DeBounceButton>
+                    <DeBounceButton @click="soundPlay({ isReversed: true })" type="warning">倒放</DeBounceButton>
+                    <DeBounceButton @click="soundStop()" type="danger">停止播放</DeBounceButton>
+                  </el-button-group>
+                  <el-button-group>
+                    <el-button @click="downloadSound()" type="primary">下载原音频</el-button>
+                    <el-button @click="downloadReversed()" type="info">下载倒放音频</el-button>
+                  </el-button-group>
+                </el-card>
+              </el-col>
+            </el-row>
             <br>
             <br>
             <el-card class="blur-card">
@@ -166,19 +167,11 @@
                   <span>注意事项</span>
                 </div>
               </template>
-              <el-space wrap class="proj-info">
+              <el-space wrap>
                 <ul>
                   <li>
                     <div>
-                      原声大碟模式：当匹配到特定拼音会使用原声大碟，当前版本的原声大碟包括以下内容
-                      <ul>
-                        <li v-for="item of ysddShow.value" :key="item">
-                          <DeBounceButton @click="PreviewPlay(item)" type="primary">试听</DeBounceButton>
-                          <ul>
-                            <li v-for="nameitem of item.name" :key="nameitem">{{ nameitem }}</li>
-                          </ul><br>
-                        </li>
-                      </ul>
+                      原声大碟模式：当匹配到特定拼音会使用原声大碟。
                     </div>
                   </li>
                   <li>
@@ -197,6 +190,43 @@
                     </div>
                   </li>
                 </ul>
+              </el-space>
+            </el-card>
+            <br>
+            <br>
+            <el-card class="blur-card">
+              <template #header>
+                <div class="card-header">
+                  <span>原声大碟一览</span>
+                </div>
+              </template>
+              <el-space wrap alignment="flex-start">
+                <el-card v-for="item of ysddShow.value" :key="item" class="blur-card">
+                  <template #header>
+                    <DeBounceButton @click="PreviewPlay(item)" type="primary">试听</DeBounceButton>
+                  </template>
+                  <div v-for="nameitem of item.name" :key="nameitem">
+                    {{ nameitem }}
+                  </div>
+                </el-card>
+              </el-space>
+            </el-card>
+            <br>
+            <br>
+            <el-card class="blur-card">
+              <template #header>
+                <div class="card-header">
+                  <span>艺术殿堂</span>
+                </div>
+              </template>
+              <el-space wrap>
+                <el-avatar src="static/img/lizi.jpg" size="large"
+                  @click="showArt('static/music/Bones - 欠债调音师.mp3', 'Bones - 欠债调音师')" />
+                <el-avatar src="static/img/rk5.jpg" size="large"
+                  @click="showArt('static/music/I Got Smoke - V在燃烧.mp3', 'I Got Smoke - V在燃烧')" />
+                <el-avatar src="static/img/ccvbn.jpg" size="large"
+                  @click="showArt('static/music/Ccvbn -（完）电棍：波西唢呐狂想曲.mp3', 'Ccvbn -（完）电棍：♿波西唢呐狂想曲♿')" />
+                <div>点击头像加载音乐</div>
               </el-space>
             </el-card>
             <el-divider />
@@ -229,6 +259,9 @@
                   <el-link href="https://github.com/fivepotato" type="primary">fivepotato</el-link>
                   重构了原声大碟匹配、音频倒放等诸多算法 修复了历史罪人“TheUnknownThing”造成的倒放音频失控问题
                   <br />
+                  <el-link href="https://github.com/PeterTea5822" type="primary">PeterTea5822</el-link>
+                  重构UI，引入更多原声大碟
+                  <br />
                   <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
                   新增了音频倒放和倒放下载功能 增加了更多原声大碟
                 </el-descriptions-item>
@@ -253,8 +286,8 @@ import pinyin2 from "pinyin"
 import Pizzicato from 'pizzicato'
 import { ElMessage } from 'element-plus'
 
-const TOKENS_PATH = '/static/tokens/'
-const YSDD_TOKEN_PATH = '/static/ysddTokens/'
+const TOKENS_PATH = 'static/tokens/'
+const YSDD_TOKEN_PATH = 'static/ysddTokens/'
 
 const crunker = new Crunker()
 
@@ -266,7 +299,7 @@ export default {
       isSliced: false,
     })
     const isComplete = ref(true)
-    const version = ref('v1.2')
+    const version = ref('v1.3')
     const audioSrc = reactive({ value: '#', blob: undefined, name: '#' })
     const ysddShow = reactive({ value: [] })
 
@@ -283,7 +316,7 @@ export default {
     }
     function configInit() {
       const tokenSet = new Set()
-      fetch('/static/tokens.json')
+      fetch('static/tokens.json')
         .then((resp) => resp.json())
         .then((data) => {
           for (const v of data) {
@@ -293,7 +326,7 @@ export default {
         .catch(err => console.error('加载初始配置文件失败', err))
       const ysddDict = new Map()
       const ysddLastWordLengthIndex = new Map(), ysddSource = new Map()
-      fetch('/static/ysdd.json')
+      fetch('static/ysdd.json')
         .then((resp) => resp.json())
         .then((data) => {
           for (const [filename, textlist] of Object.entries(data)) {
@@ -319,7 +352,7 @@ export default {
         .catch(err => console.error('加载原声大碟配置失败', err))
       const chinglish = new Map()
       const tonedChinglish = new Map()
-      fetch('/static/chinglish.json')
+      fetch('static/chinglish.json')
         .then((resp) => resp.json())
         .then((data) => {
           for (const [key, value] of Object.entries(data))
@@ -709,7 +742,6 @@ export default {
       audioSrc.value = src
       audioSrc.blob = undefined
       audioSrc.name = name
-      //soundPlay() //点完后点播放容易导致快速重复点击播放的this.getRawSourceNode is not a function的bug，考虑移除
     }
 
     return {
@@ -746,6 +778,7 @@ export default {
 
 * {
   font-family: OPPOSans-B, sans-serif;
+  text-shadow: 1px 1px 4px #000;
 }
 
 h1,
@@ -765,23 +798,17 @@ h2 {
   text-align: center;
 }
 
-.proj-info {
-  line-height: 1.5rem;
-}
-
-
 .blur-card {
   backdrop-filter: blur(15px) brightness(90%);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #fff6;
   border: hidden;
-  --el-card-border-color: hidden;
-  --el-text-color-regular: #FFFFFF
-    /* border-radius: 10px */
+  --el-card-border-color: #fff6;
+  --el-text-color-regular: #FFFFFF;
 }
 
 .el-textarea {
   --el-input-text-color: white;
-  --el-fill-color-blank: #ffffff00
+  --el-fill-color-blank: #ffffff00;
 }
 
 
@@ -803,7 +830,6 @@ h2 {
   --el-fill-color-blank: #67676733;
   --el-fill-color-light: #f5f7fa57;
   --el-text-color-primary: white;
-
 }
 
 .bk-img {
@@ -819,7 +845,6 @@ h2 {
 <style>
 .el-input-number {
   --el-fill-color-blank: #ff000000;
-  --el-fill-color-light : #ff000000 !important;
+  --el-fill-color-light: #ff000000 !important;
 }
-
 </style>
