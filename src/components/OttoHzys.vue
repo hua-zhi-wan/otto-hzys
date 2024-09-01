@@ -203,7 +203,7 @@
               <el-space wrap alignment="flex-start">
                 <el-card v-for="item of ysddShow.value" :key="item" class="blur-card">
                   <template #header>
-                    <DeBounceButton @click="PreviewPlay(item)" type="primary">试听</DeBounceButton>
+                    <DeBounceButton @click="previewPlay(item)" type="primary">试听</DeBounceButton>
                   </template>
                   <div v-for="nameitem of item.name" :key="nameitem">
                     {{ nameitem }}
@@ -333,10 +333,8 @@ export default {
             for (const text of textlist) {
               const py = pinyin.getFullChars(text)
               ysddDict.set(py, filename)
-
             }
             ysddShow.value.push({ name: textlist, filename: filename })
-
           }
           for (const [filename, textlist] of Object.entries(data)) {
             for (const text of textlist) {
@@ -672,17 +670,17 @@ export default {
         sound.effects.push(delay)
       }
     }
-    function PreviewPlay({ filename }) {
-      const PreviewSrc = ref(`${YSDD_TOKEN_PATH}/${filename}.mp3`)
+    function previewPlay({ filename }) {
+      const previewSrc = ref(`${YSDD_TOKEN_PATH}/${filename}.mp3`)
       const prsound = { value: undefined, effects: [] }
-      if (PreviewSrc.value !== '#') {
+      if (previewSrc.value !== '#') {
         prsound.value = new Pizzicato.Sound({
           source: 'file',
           options: {
-            path: PreviewSrc.value
+            path: previewSrc.value
           }
         }, () => {
-          console.log("now playing " + PreviewSrc.value)
+          console.log("now playing " + previewSrc.value)
           prsound.value.play()
         })
       }
@@ -754,7 +752,7 @@ export default {
       audioSrc,
       applyEffects,
       soundPlay,
-      PreviewPlay,
+      previewPlay,
       downloadReversed,
       audioEffects,
       soundStop,
@@ -800,7 +798,7 @@ h2 {
 
 .blur-card {
   backdrop-filter: blur(15px) brightness(90%);
-  background-color: #fff6;
+  background-color: #aaa6;
   border: hidden;
   --el-card-border-color: #fff6;
   --el-text-color-regular: #FFFFFF;
@@ -808,7 +806,7 @@ h2 {
 
 .el-textarea {
   --el-input-text-color: white;
-  --el-fill-color-blank: #ffffff00;
+  --el-fill-color-blank: #2223;
 }
 
 
