@@ -226,6 +226,8 @@
                   @click="showArt('static/music/I Got Smoke - V在燃烧.mp3', 'I Got Smoke - V在燃烧')" />
                 <el-avatar src="static/img/ccvbn.jpg" size="large"
                   @click="showArt('static/music/Ccvbn -（完）电棍：波西唢呐狂想曲.mp3', 'Ccvbn -（完）电棍：♿波西唢呐狂想曲♿')" />
+                <el-avatar src="static/img/耄耋A梦.jpg" size="large"
+                  @click="showArt('static/music/耄耋A梦 - 会唱歌的花枝丸.mp3', '耄耋A梦（不跑调版） - 会唱歌的花枝丸')" />
                 <div>点击头像加载音乐</div>
               </el-space>
             </el-card>
