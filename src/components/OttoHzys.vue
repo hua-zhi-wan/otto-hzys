@@ -587,7 +587,9 @@ export default {
         .then((output) => {
           audioSrc.value = output.url
           audioSrc.blob = output.blob
-          audioSrc.name = `otto-hzys-${Date.now()}`
+          const filename = formData.text.slice(0, 20).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '') || 'otto-hzys' // 防止文件名过长或包含特殊字符
+          const datestr = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15) // YYYYMMDDHHmmss
+          audioSrc.name = `${filename}-${datestr}`
           ElMessage({
             message: `答辩<${audioSrc.name}>生成完成，请享用`,
             type: 'success'
