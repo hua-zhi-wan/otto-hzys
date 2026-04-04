@@ -9,7 +9,6 @@ const { pinyin: pinyinLib } = require('pinyin/lib/pinyin');
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static('public'));
 
 // Load static data files
 let tokensData, ysddData, subdirFileMap;
@@ -413,6 +412,14 @@ app.post('/api/text-to-wav', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend server is running' });
+});
+
+// Catch-all route for non-API requests - return JSON error instead of HTML
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Not Found', 
+    message: 'This backend server only provides API endpoints. Valid endpoints: POST /api/text-to-wav, GET /health' 
+  });
 });
 
 // Start server
