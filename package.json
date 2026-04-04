@@ -5,17 +5,22 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "server": "node server.js",
+    "dev": "concurrently \"npm run serve\" \"npm run server\"",
+    "start": "node server.js",
+    "test:backend": "node test/backend.test.js",
+    "test": "node test/run-tests.js"
   },
   "dependencies": {
     "core-js": "^3.8.3",
     "crunker": "^2.0.0",
     "element-plus": "^2.2.25",
+    "express": "^4.18.2",
     "js-pinyin": "^0.1.9",
     "lodash": "^4.17.21",
     "pinyin": "^4.0.0-alpha.0",
     "pizzicato": "^0.6.4",
-    "segmentit": "^2.0.3",
     "vue": "^3.2.13"
   },
   "devDependencies": {
@@ -25,6 +30,7 @@
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "concurrently": "^7.6.0",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3"
   },
