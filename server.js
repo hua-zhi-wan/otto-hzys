@@ -13,7 +13,7 @@ app.use(express.static('public'));
 
 // Load static data files
 let tokensData, ysddData, subdirFileMap;
-let tokenSet, ysddSource, ysddDict, tonedChinglish;
+let tokenSet, ysddSource, ysddDict, tonedChinglish, ysddPhraseToKey;
 
 async function loadStaticData() {
   try {
@@ -31,10 +31,11 @@ async function loadStaticData() {
     // Create ysddSource and ysddDict similar to frontend
     ysddSource = new Map();
     ysddDict = new Map();
+    // Create reverse mapping from Chinese phrases to YSDD keys
+    ysddPhraseToKey = new Map();
     
     // ysdd.json is an object where keys are pinyin sequences and values are arrays of Chinese phrases
-    // We need to create mappings from pinyin to filenames
-    // For now, we'll use the pinyin key as the filename (since the actual audio files are named with these keys)
+    // We need to create mappings from pinyin to filenames and from Chinese phrases to pinyin keys
     if (typeof ysddData === 'object' && ysddData !== null) {
       Object.entries(ysddData).forEach(([pinyinKey, phrases]) => {
         if (Array.isArray(phrases)) {
@@ -42,11 +43,9 @@ async function loadStaticData() {
           ysddSource.set(pinyinKey, pinyinKey);
           ysddDict.set(pinyinKey, pinyinKey);
           
-          // Also add individual phrases converted to pinyin for reverse lookup
+          // Create reverse mapping from Chinese phrases to pinyin keys
           phrases.forEach(phrase => {
-            // Convert phrase to pinyin (simplified approach)
-            // In a real implementation, we'd use the same pinyin library as frontend
-            // For now, we'll skip this since it's complex and the main use case is pinyin -> filename
+            ysddPhraseToKey.set(phrase, pinyinKey);
           });
         }
       });
@@ -100,6 +99,86 @@ function segmentChinese(text) {
   return Array.from(text);
 }
 
+// Enhanced ysdd parsing for backend with phrase matching
+function ysddParse(tonedPinyins, originalText, isYsddFlag) {
+  if (!isYsddFlag || tonedPinyins.length === 0) {
+    return tonedPinyins;
+  }
+  
+  // First, try to match the entire original text against YSDD phrases
+  if (originalText && ysddPhraseToKey.has(originalText)) {
+    const pinyinKey = ysddPhraseToKey.get(originalText);
+    return [{ p: pinyinKey, t: null, isYsdd: true }];
+  }
+  
+  // For partial matching, we'll use the character-by-character approach
+  const result = [];
+  let i = 0;
+  
+  while (i < tonedPinyins.length) {
+    let matched = false;
+    
+    // Try to match the longest possible phrase first (check from longest to shortest)
+    // Maximum reasonable phrase length (avoid excessive computation)
+    const maxPhraseLength = Math.min(10, tonedPinyins.length - i);
+    
+    for (let phraseLength = maxPhraseLength; phraseLength >= 1; phraseLength--) {
+      if (i + phraseLength > tonedPinyins.length) continue;
+      
+      // Build both full pinyin and abbreviated pinyin for this phrase
+      const phrasePinyinParts = [];
+      const phraseAbbrevParts = [];
+      let hasEnglishWord = false;
+      
+      for (let j = 0; j < phraseLength; j++) {
+        const item = tonedPinyins[i + j];
+        phrasePinyinParts.push(item.p.toLowerCase());
+        if (item.isEnglishWord) {
+          hasEnglishWord = true;
+          // For English words, use the word itself as both full and abbreviated
+          phraseAbbrevParts.push(item.p.toLowerCase());
+        } else {
+          // For Chinese characters, get the first letter of pinyin for abbreviation
+          const firstLetter = item.p.toLowerCase().charAt(0);
+          phraseAbbrevParts.push(firstLetter);
+        }
+      }
+      
+      const fullPinyin = phrasePinyinParts.join('');
+      const abbrevPinyin = phraseAbbrevParts.join('');
+      
+      // Check if either full or abbreviated pinyin exists in ysddDict
+      let matchKey = null;
+      if (ysddDict.has(fullPinyin)) {
+        matchKey = fullPinyin;
+      } else if (ysddDict.has(abbrevPinyin)) {
+        matchKey = abbrevPinyin;
+      }
+      
+      if (matchKey) {
+        // Found a match! Add as YSDD item
+        result.push({
+          p: matchKey,
+          t: null,
+          isYsdd: true,
+          isEnglishWord: hasEnglishWord
+        });
+        i += phraseLength;
+        matched = true;
+        break;
+      }
+    }
+    
+    if (!matched) {
+      // No phrase match found, add the current item as-is
+      result.push(tonedPinyins[i]);
+      i++;
+    }
+  }
+  
+  return result;
+}
+
 // Convert text to audio sequence (similar to frontend logic)
 function textToAudioSequence(text, options = {}) {
   const {
@@ -133,65 +212,7 @@ function textToAudioSequence(text, options = {}) {
     return { p: v, t: null };
   });
 
-  // Enhanced ysdd parsing for backend with phrase matching
-  function ysddParse(tonedPinyins) {
-    if (!isYsdd || tonedPinyins.length === 0) {
-      return tonedPinyins;
-    }
-    
-    const result = [];
-    let i = 0;
-    
-    while (i < tonedPinyins.length) {
-      let matched = false;
-      
-      // Try to match the longest possible phrase first (check from longest to shortest)
-      // Maximum reasonable phrase length (avoid excessive computation)
-      const maxPhraseLength = Math.min(10, tonedPinyins.length - i);
-      
-      for (let phraseLength = maxPhraseLength; phraseLength >= 1; phraseLength--) {
-        if (i + phraseLength > tonedPinyins.length) continue;
-        
-        // Build pinyin string for this phrase
-        const phrasePinyinParts = [];
-        let hasEnglishWord = false;
-        
-        for (let j = 0; j < phraseLength; j++) {
-          const item = tonedPinyins[i + j];
-          phrasePinyinParts.push(item.p.toLowerCase());
-          if (item.isEnglishWord) {
-            hasEnglishWord = true;
-          }
-        }
-        
-        const phrasePinyin = phrasePinyinParts.join('');
-        
-        // Check if this phrase exists in ysddDict
-        if (ysddDict.has(phrasePinyin)) {
-          // Found a match! Add as YSDD item
-          result.push({
-            p: phrasePinyin,
-            t: null,
-            isYsdd: true,
-            isEnglishWord: hasEnglishWord
-          });
-          i += phraseLength;
-          matched = true;
-          break;
-        }
-      }
-      
-      if (!matched) {
-        // No phrase match found, add the current item as-is
-        result.push(tonedPinyins[i]);
-        i++;
-      }
-    }
-    
-    return result;
-  }
-
-  const ysdded = ysddParse(tonedPinyins);
+  const ysdded = ysddParse(tonedPinyins, cleaned, isYsdd);
 
   const chinglishfied = ysdded.reduce((prev, v) => {
     if (v.isEnglishWord) {
@@ -337,8 +358,8 @@ app.post('/api/text-to-wav', async (req, res) => {
   try {
     const { 
       text, 
-      isYsdd = false, 
-      useNonDdbPinyin = false,
+      isYsdd = true, 
+      useNonDdbPinyin = true,
       isSliced = false
     } = req.body;
     
