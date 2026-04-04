@@ -274,6 +274,9 @@
                   <br />
                   <el-link href="https://github.com/TheUnknownThing" type="primary">TheUnknownThing</el-link>
                   新增了音频倒放和倒放下载功能 增加了更多原声大碟
+                  <br />
+                  <el-link href="https://github.com/kaixinol" type="primary">Kaesinol</el-link>
+                  加入后端API支持
                 </el-descriptions-item>
               </el-descriptions>
             </el-card>
@@ -387,7 +390,7 @@ export default {
 
     // 预加载子目录文件列表信息
     const subdirFileMap = new Map()
-    
+
     // 初始化子目录文件映射
     async function initSubdirFileMap() {
       const subdirFileLists = {
@@ -406,20 +409,20 @@ export default {
         'yzd': ['dan_0001.wav', 'yuan_0001.wav', 'zi_0001.wav'],
         'yy': ['hui_0001.wav', 'jia_0001.wav', 'jie_0001.wav', 'lai_0001.wav', 'men_0001.wav', 'ni_0001.wav', 'wo_0001.wav', 'ya_0001.wav', 'ya_0002.wav']
       }
-      
+
       for (const [subdir, files] of Object.entries(subdirFileLists)) {
         subdirFileMap.set(subdir, files)
         console.log(`子目录 ${subdir} 预加载了 ${files.length} 个音频文件: ${files.slice(0, 5).join(', ')}${files.length > 5 ? '...' : ''}`)
       }
     }
-    
+
     // 初始化子目录文件映射
     const subdirFileMapPromise = initSubdirFileMap()
 
     async function generate() {
       // 判空
       if (formData.text === "") return
-      
+
       // 等待子目录文件映射初始化完成
       await subdirFileMapPromise
       console.log('子目录文件映射初始化完成，开始音频获取')
@@ -600,12 +603,12 @@ export default {
           }
           return prev;
         }
-        
+
         if (!v.p.match(/^[.A-Z0-9!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>]$/)) { // eslint-disable-line no-useless-escape
           prev.push(v);
           return prev
         }
-        
+
         prev.push(...tonedChinglish.get(v.p));
         return prev
       }, []);
@@ -616,7 +619,7 @@ export default {
         if (isYsdd) {
           // 对于原声大碟，先尝试从ysddSource获取文件名
           let filename = ysddSource.get(p);
-          
+
           // 如果ysddSource中没有，尝试从ysddDict中查找
           if (!filename) {
             // 查找英文单词对应的原声大碟文件名
@@ -628,7 +631,7 @@ export default {
               }
             }
           }
-          
+
           // 如果找到了文件名，使用原声大碟格式
           if (filename) {
             prev.push(`<${filename}>`);
@@ -682,7 +685,7 @@ export default {
           // Return silent audio as last resort
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
         }
-        
+
         // 检查是否是标点符号，尝试从ysddTokens获取
         if (v.match(/^[!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>]+$/)) { // eslint-disable-line no-useless-escape
           console.log(`检测到标点符号: ${v}，尝试从ysddTokens获取`)
@@ -696,7 +699,7 @@ export default {
           if (tokenBlob) return tokenBlob
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
         }
-        
+
         // 如果关闭了"使用非电棍拼音"选项，直接从tokens直属目录获取
         if (!formData.useNonDdbPinyin) {
           console.log(`拼音 ${v}: 非电棍拼音已关闭，从tokens直接获取`)
@@ -704,10 +707,10 @@ export default {
           if (blob) return blob
           return await safeFetchAudio(`${TOKENS_PATH}/_.wav`)
         }
-        
+
         // 检查拼音首字母子目录
         const availableSubdirs = []
-        
+
         // 获取所有包含该拼音的子目录
         const subdirs = ['amns', 'ddj', 'dxl', 'hg1', 'hg2', 'hjm', 'hm', 'mb', 'mbo', 'nyyszgr', 'pbb', 'uzi', 'yzd', 'yy']
         for (const subdir of subdirs) {
@@ -719,10 +722,10 @@ export default {
             console.log(`拼音 ${v} 在子目录 ${subdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
           }
         }
-        
+
         const n = availableSubdirs.length
         console.log(`拼音 ${v} 的可用子目录数量: ${n}, 子目录列表: ${availableSubdirs.join(', ')}`)
-        
+
         if (n === 0) {
           console.log(`拼音 ${v}: 没有子目录包含该拼音，从tokens直接获取`)
           const blob = await safeFetchAudio(`${TOKENS_PATH}/${v}.wav`)
@@ -732,7 +735,7 @@ export default {
           // 有子目录包含该拼音，进行随机选择
           const randomChoice = Math.floor(Math.random() * (n + 1))
           console.log(`拼音 ${v}: 随机选择结果 ${randomChoice} (范围: 0-${n})`)
-          
+
           if (randomChoice === n) {
             console.log(`拼音 ${v}: 随机选择为${n}，从tokens直接获取`)
             const blob = await safeFetchAudio(`${TOKENS_PATH}/${v}.wav`)
@@ -742,12 +745,12 @@ export default {
             // 随机选择小于n，从对应子目录获取
             const selectedSubdir = availableSubdirs[randomChoice]
             console.log(`拼音 ${v}: 随机选择为${randomChoice}，从子目录 ${selectedSubdir} 获取`)
-            
+
             // 获取该子目录中所有匹配的拼音文件
             const files = subdirFileMap.get(selectedSubdir) || []
             const matchingFiles = files.filter(file => file.startsWith(v + '_') && file.endsWith('.wav'))
             console.log(`拼音 ${v}: 在子目录 ${selectedSubdir} 中找到 ${matchingFiles.length} 个匹配文件: ${matchingFiles.join(', ')}`)
-            
+
             if (matchingFiles.length > 0) {
               // 随机选择一个文件
               const randomFile = matchingFiles[Math.floor(Math.random() * matchingFiles.length)]
@@ -795,7 +798,7 @@ export default {
         newAudioBuffer.copyToChannel(audioBuffer.getChannelData(0), 0);
         return newAudioBuffer;
       }
-      
+
       // 音频拼接 - 使用独立获取的音频数组
       await crunker
         .fetchAudio(...audioBuffers)
