@@ -1,18 +1,20 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
+const { spawn } = require('child_process');
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Import frontend logic dependencies - use Node.js compatible versions
 const { pinyin: pinyinLib } = require('pinyin/lib/pinyin');
+const jsPinyin = require('js-pinyin');
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 
 // Load static data files
 let tokensData, ysddData, subdirFileMap;
-let tokenSet, ysddSource, ysddDict, tonedChinglish, ysddPhraseToKey;
+let tokenSet, ysddSource, ysddDict, tonedChinglish, ysddLastWordLengthIndex;
 
 async function loadStaticData() {
   try {
@@ -30,21 +32,28 @@ async function loadStaticData() {
     // Create ysddSource and ysddDict similar to frontend
     ysddSource = new Map();
     ysddDict = new Map();
-    // Create reverse mapping from Chinese phrases to YSDD keys
-    ysddPhraseToKey = new Map();
+    ysddLastWordLengthIndex = new Map();
     
-    // ysdd.json is an object where keys are pinyin sequences and values are arrays of Chinese phrases
-    // We need to create mappings from pinyin to filenames and from Chinese phrases to pinyin keys
+    // ysdd.json is an object where keys are filenames and values are arrays of phrases.
+    // Mirror the frontend by deriving pinyin indexes from each phrase.
     if (typeof ysddData === 'object' && ysddData !== null) {
-      Object.entries(ysddData).forEach(([pinyinKey, phrases]) => {
+      Object.entries(ysddData).forEach(([filename, phrases]) => {
         if (Array.isArray(phrases)) {
-          // Use the pinyin key as the filename for YSDD audio files
-          ysddSource.set(pinyinKey, pinyinKey);
-          ysddDict.set(pinyinKey, pinyinKey);
-          
-          // Create reverse mapping from Chinese phrases to pinyin keys
           phrases.forEach(phrase => {
-            ysddPhraseToKey.set(phrase, pinyinKey);
+            const fullChars = jsPinyin.getFullChars(phrase);
+            ysddDict.set(fullChars, filename);
+
+            const normalPinyin = pinyinLib(phrase, { style: 'normal' }).map(v => v[0]);
+            ysddSource.set(normalPinyin.join(''), filename);
+
+            const lastWord = normalPinyin[normalPinyin.length - 1];
+            if (!ysddLastWordLengthIndex.has(lastWord)) {
+              ysddLastWordLengthIndex.set(lastWord, new Map());
+            }
+            if (!ysddLastWordLengthIndex.get(lastWord).has(normalPinyin.length)) {
+              ysddLastWordLengthIndex.get(lastWord).set(normalPinyin.length, []);
+            }
+            ysddLastWordLengthIndex.get(lastWord).get(normalPinyin.length).push(normalPinyin);
           });
         }
       });
@@ -59,7 +68,7 @@ async function loadStaticData() {
     Object.entries(chinglishRaw).forEach(([char, pinyinStr]) => {
       // Split the string into individual pinyin parts (e.g., "AiFu" -> ["Ai", "Fu"])
       const pinyins = pinyinStr.match(/[A-Z][a-z]*/g) || [pinyinStr];
-      tonedChinglish.set(char, pinyins.map(p => ({ p: p.toLowerCase(), t: null })));
+      tonedChinglish.set(char.toUpperCase(), pinyins.map(p => ({ p: p.toLowerCase(), t: null, isYsdd: false })));
     });
 
     // Build subdirFileMap for non-ddb pinyin
@@ -98,84 +107,110 @@ function segmentChinese(text) {
   return Array.from(text);
 }
 
-// Enhanced ysdd parsing for backend with phrase matching
-function ysddParse(tonedPinyins, originalText, isYsddFlag) {
+function getChinglishKey(value) {
+  if (typeof value !== 'string' || value.length === 0) return value;
+  return /^[a-z]$/i.test(value) ? value.toUpperCase() : value;
+}
+
+function segmentText(text) {
+  const characters = [];
+  const parts = text.split(/([a-zA-Z]+)/);
+
+  for (const part of parts) {
+    if (!part) continue;
+
+    if (/^[a-zA-Z]+$/.test(part)) {
+      // Match frontend behavior: preserve contiguous English words as one token.
+      characters.push(part.toUpperCase());
+      continue;
+    }
+
+    const cleaned = part.toUpperCase().replace(/[^.0-9a-zA-Z\u4e00-\u9fff]+/g, ' ');
+    characters.push(...Array.from(cleaned));
+  }
+
+  return characters;
+}
+
+// Match the frontend dynamic-programming YSDD parse behavior.
+function ysddParse(tonedPinyins, isYsddFlag) {
   if (!isYsddFlag || tonedPinyins.length === 0) {
     return tonedPinyins;
   }
-  
-  // First, try to match the entire original text against YSDD phrases
-  if (originalText && ysddPhraseToKey.has(originalText)) {
-    const pinyinKey = ysddPhraseToKey.get(originalText);
-    return [{ p: pinyinKey, t: null, isYsdd: true }];
+
+  const optMatch = [];
+  const optMatchCount = [];
+
+  function setOptMatch(fromIndex, matchCount, tonedPinyin, ysddKey) {
+    const toIndex = fromIndex + matchCount + !matchCount;
+    if (!optMatch[fromIndex]) {
+      optMatch[toIndex] = [{
+        p: tonedPinyin?.p || ysddKey,
+        t: tonedPinyin?.t || null,
+        isYsdd: !!ysddKey,
+        isEnglishWord: tonedPinyin?.isEnglishWord || false
+      }];
+      optMatchCount[toIndex] = matchCount;
+      return;
+    }
+
+    const optNew = [];
+    optNew.push(...optMatch[fromIndex]);
+    const countNew = optMatchCount[fromIndex] + matchCount;
+
+    if (matchCount) {
+      optNew.push({ p: ysddKey, t: null, isYsdd: true });
+    } else {
+      optNew.push({
+        p: tonedPinyin.p,
+        t: tonedPinyin.t,
+        isYsdd: false,
+        isEnglishWord: tonedPinyin.isEnglishWord || false
+      });
+    }
+
+    optMatch[toIndex] = optNew;
+    optMatchCount[toIndex] = countNew;
   }
-  
-  // For partial matching, we'll use the character-by-character approach
-  const result = [];
-  let i = 0;
-  
-  while (i < tonedPinyins.length) {
-    let matched = false;
-    
-    // Try to match the longest possible phrase first (check from longest to shortest)
-    // Maximum reasonable phrase length (avoid excessive computation)
-    const maxPhraseLength = Math.min(10, tonedPinyins.length - i);
-    
-    for (let phraseLength = maxPhraseLength; phraseLength >= 1; phraseLength--) {
-      if (i + phraseLength > tonedPinyins.length) continue;
-      
-      // Build both full pinyin and abbreviated pinyin for this phrase
-      const phrasePinyinParts = [];
-      const phraseAbbrevParts = [];
-      let hasEnglishWord = false;
-      
-      for (let j = 0; j < phraseLength; j++) {
-        const item = tonedPinyins[i + j];
-        phrasePinyinParts.push(item.p.toLowerCase());
-        if (item.isEnglishWord) {
-          hasEnglishWord = true;
-          // For English words, use the word itself as both full and abbreviated
-          phraseAbbrevParts.push(item.p.toLowerCase());
-        } else {
-          // For Chinese characters, get the first letter of pinyin for abbreviation
-          const firstLetter = item.p.toLowerCase().charAt(0);
-          phraseAbbrevParts.push(firstLetter);
+
+  for (let i = 0; i < tonedPinyins.length; i += 1) {
+    const lastWord = tonedPinyins[i];
+    const lastWordYsdd = ysddLastWordLengthIndex.get(lastWord.p);
+    const optionalMatches = [];
+
+    if (lastWordYsdd) {
+      for (const length of lastWordYsdd.keys()) {
+        for (const woTonePinyins of lastWordYsdd.get(length)) {
+          let isEqual = true;
+          for (let j = 0; j < length - 1; j += 1) {
+            if (woTonePinyins[j] === tonedPinyins[i - length + j + 1]?.p) continue;
+            isEqual = false;
+            break;
+          }
+          if (!isEqual) continue;
+          optionalMatches.push({ length, woTonePinyins });
         }
       }
-      
-      const fullPinyin = phrasePinyinParts.join('');
-      const abbrevPinyin = phraseAbbrevParts.join('');
-      
-      // Check if either full or abbreviated pinyin exists in ysddDict
-      let matchKey = null;
-      if (ysddDict.has(fullPinyin)) {
-        matchKey = fullPinyin;
-      } else if (ysddDict.has(abbrevPinyin)) {
-        matchKey = abbrevPinyin;
-      }
-      
-      if (matchKey) {
-        // Found a match! Add as YSDD item
-        result.push({
-          p: matchKey,
-          t: null,
-          isYsdd: true,
-          isEnglishWord: hasEnglishWord
-        });
-        i += phraseLength;
-        matched = true;
-        break;
-      }
     }
-    
-    if (!matched) {
-      // No phrase match found, add the current item as-is
-      result.push(tonedPinyins[i]);
-      i++;
+
+    optionalMatches.sort((a, b) => a.length - b.length);
+    let selectMatchLength = optMatchCount[i - 1] || 0;
+    let selectMatch = null;
+
+    for (const { length, woTonePinyins } of optionalMatches) {
+      if ((optMatchCount[i - length] || 0) + length < selectMatchLength) continue;
+      selectMatchLength = (optMatchCount[i - length] || 0) + length;
+      selectMatch = woTonePinyins;
+    }
+
+    if (!selectMatch) {
+      setOptMatch(i - 1, 0, lastWord, null);
+    } else {
+      setOptMatch(i - selectMatch.length, selectMatch.length, null, selectMatch.join(''));
     }
   }
-  
-  return result;
+
+  return optMatch.pop();
 }
 
 // Convert text to audio sequence (similar to frontend logic)
@@ -189,14 +224,7 @@ function textToAudioSequence(text, options = {}) {
   const cleaned = cleanText(text);
   if (!cleaned) return [];
 
-  let characters;
-  if (/[\u4e00-\u9fff]/.test(cleaned)) {
-    // Contains Chinese characters - split into individual characters
-    characters = segmentChinese(cleaned);
-  } else {
-    // No Chinese characters - treat as regular text
-    characters = Array.from(cleaned);
-  }
+  const characters = segmentText(cleaned);
 
   const tonedPinyins = characters.map(v => {
     if (v.length > 1 && /^[A-Z]+$/i.test(v)) {
@@ -211,7 +239,7 @@ function textToAudioSequence(text, options = {}) {
     return { p: v, t: null };
   });
 
-  const ysdded = ysddParse(tonedPinyins, cleaned, isYsdd);
+  const ysdded = ysddParse(tonedPinyins, isYsdd);
 
   const chinglishfied = ysdded.reduce((prev, v) => {
     if (v.isEnglishWord) {
@@ -229,6 +257,8 @@ function textToAudioSequence(text, options = {}) {
       }
       // Not found in YSDD, convert to chinglish
       for (const ch of v.p) {
+        // Match frontend behavior for English words: try raw letter key first,
+        // then fall back to the plain letter token.
         const mapped = tonedChinglish.get(ch);
         if (mapped) {
           prev.push(...mapped);
@@ -239,12 +269,12 @@ function textToAudioSequence(text, options = {}) {
       return prev;
     }
 
-    if (!v.p.match(/^[.A-Z0-9!？；：、...，。(){}_=+\-*/\\|~@#$%^&'"<>]$/)) {
+    if (!v.p.match(/^[.A-Za-z0-9!？；：、...，。(){}_=+\-*/\\|~@#$%^&'"<>]$/)) {
       prev.push(v);
       return prev;
     }
 
-    prev.push(...(tonedChinglish.get(v.p) || [{ p: '_', t: null }]));
+    prev.push(...(tonedChinglish.get(getChinglishKey(v.p)) || [{ p: '_', t: null }]));
     return prev;
   }, []);
 
@@ -258,21 +288,22 @@ function textToAudioSequence(text, options = {}) {
         filename = ysddDict.get(p);
       }
       
-      // If found, use original sound track format
       if (filename) {
         prev.push(`<${filename}>`);
       } else {
-        // If not found, fall back to regular token processing
         if (tokenSet.has(p)) {
           prev.push(p);
+        } else if (prev[prev.length - 1] === '_') {
+          return prev;
         } else {
           prev.push('_');
         }
       }
     } else {
-      // Regular token processing
       if (tokenSet.has(p)) {
         prev.push(p);
+      } else if (prev[prev.length - 1] === '_') {
+        return prev;
       } else {
         prev.push('_');
       }
@@ -334,22 +365,57 @@ function getAudioFilePath(token, useNonDdbPinyin = false) {
   return path.join(baseTokensPath, selectedOption.subdir, randomFile);
 }
 
-// Helper function to read audio file
-async function readAudioFile(filePath) {
+async function resolveAudioFilePath(filePath) {
   try {
-    const buffer = await fs.readFile(filePath);
-    return buffer;
+    await fs.access(filePath);
+    return filePath;
   } catch (error) {
     console.warn(`Audio file not found: ${filePath}`);
-    // Return silent audio as fallback
-    const silentPath = path.join(__dirname, 'public', 'static', 'tokens', '_.wav');
-    try {
-      return await fs.readFile(silentPath);
-    } catch (silentError) {
-      console.error('Silent audio fallback also failed');
-      return Buffer.alloc(0);
-    }
+    return path.join(__dirname, 'public', 'static', 'tokens', '_.wav');
   }
+}
+
+async function concatAudioFilesToWav(filePaths) {
+  const ffmpegArgs = [
+    '-hide_banner',
+    '-loglevel', 'error'
+  ];
+
+  for (const filePath of filePaths) {
+    ffmpegArgs.push('-i', path.resolve(filePath));
+  }
+
+  const filterInputs = filePaths.map((_, index) => `[${index}:a]`).join('');
+  ffmpegArgs.push(
+    '-filter_complex',
+    `${filterInputs}concat=n=${filePaths.length}:v=0:a=1[aout]`,
+    '-map', '[aout]',
+    '-ac', '1',
+    '-ar', '44100',
+    '-f', 'wav',
+    'pipe:1'
+  );
+
+  const outputBuffer = await new Promise((resolve, reject) => {
+    const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+
+    ffmpeg.stdout.on('data', chunk => stdoutChunks.push(chunk));
+    ffmpeg.stderr.on('data', chunk => stderrChunks.push(chunk));
+    ffmpeg.on('error', reject);
+    ffmpeg.on('close', code => {
+      if (code === 0) {
+        resolve(Buffer.concat(stdoutChunks));
+        return;
+      }
+
+      reject(new Error(`ffmpeg exited with code ${code}: ${Buffer.concat(stderrChunks).toString('utf8')}`));
+    });
+  });
+
+  return outputBuffer;
 }
 
 // Main text-to-wav endpoint
@@ -377,25 +443,18 @@ app.post('/api/text-to-wav', async (req, res) => {
       return res.status(400).json({ error: 'No valid audio sequence generated' });
     }
 
-    // Read all audio files based on useNonDdbPinyin setting
-    const audioBuffers = [];
+    // Resolve all source audio files and let ffmpeg produce a valid single WAV.
+    const audioFilePaths = [];
     for (const item of audioSequence) {
       const filePath = getAudioFilePath(item, useNonDdbPinyin);
-      const buffer = await readAudioFile(filePath);
-      if (buffer.length > 0) {
-        audioBuffers.push(buffer);
-      }
+      audioFilePaths.push(await resolveAudioFilePath(filePath));
     }
 
-    if (audioBuffers.length === 0) {
+    if (audioFilePaths.length === 0) {
       return res.status(400).json({ error: 'No audio files found' });
     }
 
-    // For simplicity, we'll concatenate the buffers directly
-    // In production, you'd want to use a proper audio library like ffmpeg
-    // Note: Audio effects are applied client-side using Pizzicato library
-    const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.length, 0);
-    const resultBuffer = Buffer.concat(audioBuffers, totalLength);
+    const resultBuffer = await concatAudioFilesToWav(audioFilePaths);
 
     // Set response headers
     res.setHeader('Content-Type', 'audio/wav');

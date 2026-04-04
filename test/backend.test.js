@@ -50,7 +50,7 @@ function getRandomValidText() {
   return texts[Math.floor(Math.random() * texts.length)];
 }
 
-// Generate random text from all test texts (for single request test which can handle any input)
+// Generate random text from all test texts
 function getRandomText() {
   const texts = TEST_CONFIG.allTestTexts;
   return texts[Math.floor(Math.random() * texts.length)];
@@ -91,7 +91,8 @@ async function makeRequest(text, params = {}) {
             success: true,
             statusCode: res.statusCode,
             contentLength: buffer.length,
-            contentType: res.headers['content-type']
+            contentType: res.headers['content-type'],
+            buffer
           });
         } else {
           const errorText = buffer.toString();
@@ -119,11 +120,25 @@ async function makeRequest(text, params = {}) {
   });
 }
 
+function countRiffHeaders(buffer) {
+  let count = 0;
+  let offset = 0;
+
+  while (offset < buffer.length) {
+    const next = buffer.indexOf('RIFF', offset, 'ascii');
+    if (next === -1) break;
+    count++;
+    offset = next + 4;
+  }
+
+  return count;
+}
+
 // Single request test
 async function testSingleRequest() {
   console.log('🧪 Testing single request...');
 
-  const text = getRandomText();
+  const text = getRandomValidText();
   const params = generateRandomParams();
 
   try {
@@ -314,6 +329,78 @@ async function testParameterCombinations() {
   return passedTests === totalTests;
 }
 
+async function testWavIntegrity() {
+  console.log('\n🎵 Testing WAV integrity...');
+
+  try {
+    const result = await makeRequest('大家好啊', {
+      isYsdd: false,
+      useNonDdbPinyin: false,
+      isSliced: false
+    });
+
+    if (!result.success) {
+      console.log(`   ❌ Request failed with status ${result.statusCode}`);
+      return false;
+    }
+
+    const riffCount = countRiffHeaders(result.buffer);
+    if (riffCount !== 1) {
+      console.log(`   ❌ Expected 1 RIFF header, got ${riffCount}`);
+      return false;
+    }
+
+    console.log('   ✅ Response contains a single RIFF header');
+    return true;
+  } catch (error) {
+    console.log(`   ❌ WAV integrity test failed: ${error.message}`);
+    return false;
+  }
+}
+
+async function testSingleCharPronunciation() {
+  console.log('\n🔤 Testing single character pronunciation...');
+
+  try {
+    const silence = await makeRequest('_', {
+      isYsdd: false,
+      useNonDdbPinyin: false,
+      isSliced: false
+    });
+    const letter = await makeRequest('A', {
+      isYsdd: false,
+      useNonDdbPinyin: false,
+      isSliced: false
+    });
+    const digit = await makeRequest('1', {
+      isYsdd: false,
+      useNonDdbPinyin: false,
+      isSliced: false
+    });
+
+    if (!silence.success || !letter.success || !digit.success) {
+      console.log('   ❌ Failed to fetch one of the pronunciation samples');
+      return false;
+    }
+
+    if (Buffer.compare(silence.buffer, letter.buffer) === 0) {
+      console.log('   ❌ Single letter "A" is still falling back to silence');
+      return false;
+    }
+
+    if (Buffer.compare(silence.buffer, digit.buffer) === 0) {
+      console.log('   ❌ Single digit "1" is still falling back to silence');
+      return false;
+    }
+
+    console.log('   ✅ Single letters and digits no longer fall back to silence');
+    return true;
+  } catch (error) {
+    console.log(`   ❌ Single character pronunciation test failed: ${error.message}`);
+    return false;
+  }
+}
+
 // Main test runner
 async function runTests() {
   console.log('='.repeat(60));
@@ -335,6 +422,12 @@ async function runTests() {
 
   const paramTestPassed = await testParameterCombinations();
   allTestsPassed = allTestsPassed && paramTestPassed;
+
+  const wavIntegrityPassed = await testWavIntegrity();
+  allTestsPassed = allTestsPassed && wavIntegrityPassed;
+
+  const singleCharPronunciationPassed = await testSingleCharPronunciation();
+  allTestsPassed = allTestsPassed && singleCharPronunciationPassed;
 
   const concurrencyTestPassed = await testConcurrency();
   allTestsPassed = allTestsPassed && concurrencyTestPassed;
