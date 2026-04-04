@@ -15,6 +15,8 @@ app.use(express.json({ limit: '10mb' }));
 // Load static data files
 let tokensData, ysddData, subdirFileMap;
 let tokenSet, ysddSource, ysddDict, tonedChinglish, ysddLastWordLengthIndex;
+let ffmpegAvailable = false;
+let ffmpegStatusMessage = 'ffmpeg has not been checked yet.';
 
 async function loadStaticData() {
   try {
@@ -92,6 +94,37 @@ async function loadStaticData() {
   } catch (error) {
     console.error('Failed to load static data:', error);
     throw error;
+  }
+}
+
+async function checkFfmpegAvailability() {
+  try {
+    const versionOutput = await new Promise((resolve, reject) => {
+      const ffmpeg = spawn('ffmpeg', ['-version']);
+      const stdoutChunks = [];
+      const stderrChunks = [];
+
+      ffmpeg.stdout.on('data', chunk => stdoutChunks.push(chunk));
+      ffmpeg.stderr.on('data', chunk => stderrChunks.push(chunk));
+      ffmpeg.on('error', reject);
+      ffmpeg.on('close', code => {
+        if (code === 0) {
+          resolve(Buffer.concat(stdoutChunks).toString('utf8'));
+          return;
+        }
+
+        reject(new Error(Buffer.concat(stderrChunks).toString('utf8') || `ffmpeg exited with code ${code}`));
+      });
+    });
+
+    const firstLine = versionOutput.split('\n')[0]?.trim() || 'ffmpeg is available';
+    ffmpegAvailable = true;
+    ffmpegStatusMessage = firstLine;
+    console.log(`ffmpeg check passed: ${firstLine}`);
+  } catch (error) {
+    ffmpegAvailable = false;
+    ffmpegStatusMessage = `ffmpeg is required for audio generation but was not found or failed to start: ${error.message}`;
+    console.error(`ffmpeg check failed: ${ffmpegStatusMessage}`);
   }
 }
 
@@ -436,6 +469,13 @@ app.post('/api/text-to-wav', async (req, res) => {
       return res.status(400).json({ error: 'Text too long (max 1000 characters)' });
     }
 
+    if (!ffmpegAvailable) {
+      return res.status(503).json({
+        error: 'ffmpeg unavailable',
+        message: ffmpegStatusMessage
+      });
+    }
+
     // Convert text to audio sequence (useNonDdbPinyin doesn't affect sequence generation)
     const audioSequence = textToAudioSequence(text, { isYsdd, isSliced });
     
@@ -464,7 +504,11 @@ app.post('/api/text-to-wav', async (req, res) => {
 
   } catch (error) {
     console.error('Text-to-WAV error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const isFfmpegError = /ffmpeg/i.test(error.message || '');
+    res.status(isFfmpegError ? 503 : 500).json({
+      error: isFfmpegError ? 'ffmpeg unavailable' : 'Internal server error',
+      message: isFfmpegError ? error.message : 'Internal server error'
+    });
   }
 });
 
@@ -485,6 +529,7 @@ app.use((req, res) => {
 async function startServer() {
   try {
     await loadStaticData();
+    await checkFfmpegAvailability();
     app.listen(port, () => {
       console.log(`Backend server running at http://localhost:${port}`);
     });
