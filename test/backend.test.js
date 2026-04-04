@@ -8,7 +8,20 @@ const TEST_CONFIG = {
   maxConcurrentRequests: process.env.MAX_CONCURRENT || 50,
   totalRequests: process.env.TOTAL_REQUESTS || 100,
   timeout: process.env.TIMEOUT || 30000,
-  testTexts: [
+  // Valid test texts (non-empty, within length limits)
+  validTestTexts: [
+    'hello world',
+    '大家好啊，我是说的道理',
+    'test123!@#',
+    '电棍otto活字印刷',
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    '0123456789',
+    '...，。！？；：',
+    'mixed混合文本123ABC',
+    'very long text that should test the system limits and see how it handles longer inputs with various combinations of chinese characters english letters numbers and punctuation marks to ensure robustness'
+  ],
+  // All test texts including edge cases
+  allTestTexts: [
     'hello world',
     '大家好啊，我是说的道理',
     'test123!@#',
@@ -31,9 +44,15 @@ function generateRandomParams() {
   };
 }
 
-// Generate random text from test texts
+// Generate random text from valid test texts (for concurrency and parameter tests)
+function getRandomValidText() {
+  const texts = TEST_CONFIG.validTestTexts;
+  return texts[Math.floor(Math.random() * texts.length)];
+}
+
+// Generate random text from all test texts (for single request test which can handle any input)
 function getRandomText() {
-  const texts = TEST_CONFIG.testTexts;
+  const texts = TEST_CONFIG.allTestTexts;
   return texts[Math.floor(Math.random() * texts.length)];
 }
 
@@ -157,7 +176,7 @@ async function testConcurrency() {
 
     const promises = [];
     for (let i = 0; i < batchSize; i++) {
-      const text = getRandomText();
+      const text = getRandomValidText(); // Use only valid texts for concurrency test
       const params = generateRandomParams();
       promises.push(makeRequest(text, params));
     }
@@ -341,6 +360,7 @@ if (require.main === module) {
 module.exports = {
   makeRequest,
   generateRandomParams,
+  getRandomValidText,
   getRandomText,
   testSingleRequest,
   testConcurrency,

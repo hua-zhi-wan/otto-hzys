@@ -11,12 +11,8 @@ const { pinyin: pinyinLib } = require('pinyin/lib/pinyin');
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// Constants - same as frontend
-const TOKENS_PATH = '/static/tokens';
-const YSDD_TOKEN_PATH = '/static/ysdd';
-
 // Load static data files
-let tokensData, ysddData, chinglishData, subdirFileMap;
+let tokensData, ysddData, subdirFileMap;
 let tokenSet, ysddSource, ysddDict, tonedChinglish;
 
 async function loadStaticData() {
@@ -35,11 +31,23 @@ async function loadStaticData() {
     // Create ysddSource and ysddDict similar to frontend
     ysddSource = new Map();
     ysddDict = new Map();
-    if (Array.isArray(ysddData)) {
-      ysddData.forEach(item => {
-        if (item.filename && item.pinyin) {
-          ysddSource.set(item.pinyin, item.filename);
-          ysddDict.set(item.pinyin, item.filename);
+    
+    // ysdd.json is an object where keys are pinyin sequences and values are arrays of Chinese phrases
+    // We need to create mappings from pinyin to filenames
+    // For now, we'll use the pinyin key as the filename (since the actual audio files are named with these keys)
+    if (typeof ysddData === 'object' && ysddData !== null) {
+      Object.entries(ysddData).forEach(([pinyinKey, phrases]) => {
+        if (Array.isArray(phrases)) {
+          // Use the pinyin key as the filename for YSDD audio files
+          ysddSource.set(pinyinKey, pinyinKey);
+          ysddDict.set(pinyinKey, pinyinKey);
+          
+          // Also add individual phrases converted to pinyin for reverse lookup
+          phrases.forEach(phrase => {
+            // Convert phrase to pinyin (simplified approach)
+            // In a real implementation, we'd use the same pinyin library as frontend
+            // For now, we'll skip this since it's complex and the main use case is pinyin -> filename
+          });
         }
       });
     }
@@ -48,6 +56,7 @@ async function loadStaticData() {
     const chinglishPath = path.join(__dirname, 'public', 'static', 'chinglish.json');
     const chinglishContent = await fs.readFile(chinglishPath, 'utf8');
     const chinglishRaw = JSON.parse(chinglishContent);
+    
     tonedChinglish = new Map();
     Object.entries(chinglishRaw).forEach(([char, pinyinStr]) => {
       // Split the string into individual pinyin parts (e.g., "AiFu" -> ["Ai", "Fu"])
@@ -95,8 +104,8 @@ function segmentChinese(text) {
 function textToAudioSequence(text, options = {}) {
   const {
     isYsdd = false,
-    useNonDdbPinyin = false,
     isSliced = false
+    // useNonDdbPinyin is not needed here as it only affects audio file selection, not sequence generation
   } = options;
 
   const cleaned = cleanText(text);
@@ -124,24 +133,81 @@ function textToAudioSequence(text, options = {}) {
     return { p: v, t: null };
   });
 
-  // Simplified ysdd parsing for backend
+  // Enhanced ysdd parsing for backend with phrase matching
   function ysddParse(tonedPinyins) {
-    return tonedPinyins.map(item => {
-      if (ysddSource.has(item.p)) {
-        return { p: item.p, t: null, isYsdd: true };
+    if (!isYsdd || tonedPinyins.length === 0) {
+      return tonedPinyins;
+    }
+    
+    const result = [];
+    let i = 0;
+    
+    while (i < tonedPinyins.length) {
+      let matched = false;
+      
+      // Try to match the longest possible phrase first (check from longest to shortest)
+      // Maximum reasonable phrase length (avoid excessive computation)
+      const maxPhraseLength = Math.min(10, tonedPinyins.length - i);
+      
+      for (let phraseLength = maxPhraseLength; phraseLength >= 1; phraseLength--) {
+        if (i + phraseLength > tonedPinyins.length) continue;
+        
+        // Build pinyin string for this phrase
+        const phrasePinyinParts = [];
+        let hasEnglishWord = false;
+        
+        for (let j = 0; j < phraseLength; j++) {
+          const item = tonedPinyins[i + j];
+          phrasePinyinParts.push(item.p.toLowerCase());
+          if (item.isEnglishWord) {
+            hasEnglishWord = true;
+          }
+        }
+        
+        const phrasePinyin = phrasePinyinParts.join('');
+        
+        // Check if this phrase exists in ysddDict
+        if (ysddDict.has(phrasePinyin)) {
+          // Found a match! Add as YSDD item
+          result.push({
+            p: phrasePinyin,
+            t: null,
+            isYsdd: true,
+            isEnglishWord: hasEnglishWord
+          });
+          i += phraseLength;
+          matched = true;
+          break;
+        }
       }
-      return item;
-    });
+      
+      if (!matched) {
+        // No phrase match found, add the current item as-is
+        result.push(tonedPinyins[i]);
+        i++;
+      }
+    }
+    
+    return result;
   }
 
-  const ysdded = isYsdd ? ysddParse(tonedPinyins) : tonedPinyins;
+  const ysdded = ysddParse(tonedPinyins);
 
   const chinglishfied = ysdded.reduce((prev, v) => {
     if (v.isEnglishWord) {
-      if (isYsdd && ysddSource.has(v.p.toLowerCase())) {
-        prev.push({ p: v.p.toLowerCase(), t: null, isYsdd: true });
-        return prev;
+      if (isYsdd) {
+        // Check for English word in YSDD
+        const lowerWord = v.p.toLowerCase();
+        if (ysddSource.has(lowerWord)) {
+          prev.push({ p: lowerWord, t: null, isYsdd: true });
+          return prev;
+        }
+        if (ysddDict.has(lowerWord)) {
+          prev.push({ p: lowerWord, t: null, isYsdd: true });
+          return prev;
+        }
       }
+      // Not found in YSDD, convert to chinglish
       for (const ch of v.p) {
         const mapped = tonedChinglish.get(ch);
         if (mapped) {
@@ -153,7 +219,7 @@ function textToAudioSequence(text, options = {}) {
       return prev;
     }
 
-    if (!v.p.match(/^[.A-Z0-9!？；：、...，。()\[\]{}_+=\-*/\\\\|~@#$%^&'"<>]$/)) {
+    if (!v.p.match(/^[.A-Z0-9!？；：、...，。(){}_=+\-*/\\|~@#$%^&'"<>]$/)) {
       prev.push(v);
       return prev;
     }
@@ -164,14 +230,27 @@ function textToAudioSequence(text, options = {}) {
 
   const sliced = chinglishfied.reduce((prev, { p, isYsdd }) => {
     if (isYsdd) {
-      if (ysddSource.has(p)) {
-        prev.push(`<${ysddSource.get(p)}>`);
-      } else if (tokenSet.has(p)) {
-        prev.push(p);
+      // For original sound tracks, try to get filename from ysddSource first
+      let filename = ysddSource.get(p);
+      
+      // If not found in ysddSource, try to find in ysddDict 
+      if (!filename && ysddDict.has(p)) {
+        filename = ysddDict.get(p);
+      }
+      
+      // If found, use original sound track format
+      if (filename) {
+        prev.push(`<${filename}>`);
       } else {
-        prev.push('_');
+        // If not found, fall back to regular token processing
+        if (tokenSet.has(p)) {
+          prev.push(p);
+        } else {
+          prev.push('_');
+        }
       }
     } else {
+      // Regular token processing
       if (tokenSet.has(p)) {
         prev.push(p);
       } else {
@@ -183,6 +262,56 @@ function textToAudioSequence(text, options = {}) {
   }, []);
 
   return sliced;
+}
+
+// Helper function to get audio file path based on useNonDdbPinyin setting
+function getAudioFilePath(token, useNonDdbPinyin = false) {
+  // If it's an original sound track (<filename>), always use ysddTokens directory
+  if (/<.+>/.test(token)) {
+    const filename = token.replace(/<(.+)>/, '$1');
+    return path.join(__dirname, 'public', 'static', 'ysddTokens', `${filename}.mp3`);
+  }
+
+  // For regular tokens
+  const baseTokensPath = path.join(__dirname, 'public', 'static', 'tokens');
+  
+  // If useNonDdbPinyin is false, use direct tokens directory
+  if (!useNonDdbPinyin) {
+    return path.join(baseTokensPath, `${token}.wav`);
+  }
+
+  // If useNonDdbPinyin is true, implement random selection logic
+  const subdirs = ['amns', 'ddj', 'dxl', 'hg1', 'hg2', 'hjm', 'hm', 'mb', 'mbo', 'nyyszgr', 'pbb', 'uzi', 'yzd', 'yy'];
+  const availableSubdirs = [];
+  
+  // Check which subdirectories contain this token
+  for (const subdir of subdirs) {
+    const files = subdirFileMap.get(subdir) || [];
+    const matchingFiles = files.filter(file => file.startsWith(token + '_') && file.endsWith('.wav'));
+    if (matchingFiles.length > 0) {
+      availableSubdirs.push({ subdir, files: matchingFiles });
+    }
+  }
+  
+  // If no subdirectories have this token, fall back to direct tokens directory
+  if (availableSubdirs.length === 0) {
+    return path.join(baseTokensPath, `${token}.wav`);
+  }
+  
+  // Randomly choose between subdirectories and direct tokens directory
+  // Total options = available subdirectories + 1 (for direct tokens)
+  const totalOptions = availableSubdirs.length + 1;
+  const randomChoice = Math.floor(Math.random() * totalOptions);
+  
+  // If random choice is the last option, use direct tokens directory
+  if (randomChoice === availableSubdirs.length) {
+    return path.join(baseTokensPath, `${token}.wav`);
+  }
+  
+  // Otherwise, use the selected subdirectory
+  const selectedOption = availableSubdirs[randomChoice];
+  const randomFile = selectedOption.files[Math.floor(Math.random() * selectedOption.files.length)];
+  return path.join(baseTokensPath, selectedOption.subdir, randomFile);
 }
 
 // Helper function to read audio file
@@ -206,7 +335,12 @@ async function readAudioFile(filePath) {
 // Main text-to-wav endpoint
 app.post('/api/text-to-wav', async (req, res) => {
   try {
-    const { text, isYsdd = false, useNonDdbPinyin = false, isSliced = false } = req.body;
+    const { 
+      text, 
+      isYsdd = false, 
+      useNonDdbPinyin = false,
+      isSliced = false
+    } = req.body;
     
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Invalid text parameter' });
@@ -216,27 +350,17 @@ app.post('/api/text-to-wav', async (req, res) => {
       return res.status(400).json({ error: 'Text too long (max 1000 characters)' });
     }
 
-    // Convert text to audio sequence
-    const audioSequence = textToAudioSequence(text, { isYsdd, useNonDdbPinyin, isSliced });
+    // Convert text to audio sequence (useNonDdbPinyin doesn't affect sequence generation)
+    const audioSequence = textToAudioSequence(text, { isYsdd, isSliced });
     
     if (audioSequence.length === 0) {
       return res.status(400).json({ error: 'No valid audio sequence generated' });
     }
 
-    // Read all audio files
+    // Read all audio files based on useNonDdbPinyin setting
     const audioBuffers = [];
     for (const item of audioSequence) {
-      let filePath;
-      
-      if (/<.+>/.test(item)) {
-        // Original sound track
-        const filename = item.replace(/<(.+)>/, '$1');
-        filePath = path.join(__dirname, 'public', 'static', 'ysdd', `${filename}.mp3`);
-      } else {
-        // Regular token
-        filePath = path.join(__dirname, 'public', 'static', 'tokens', `${item}.wav`);
-      }
-
+      const filePath = getAudioFilePath(item, useNonDdbPinyin);
       const buffer = await readAudioFile(filePath);
       if (buffer.length > 0) {
         audioBuffers.push(buffer);
@@ -249,6 +373,7 @@ app.post('/api/text-to-wav', async (req, res) => {
 
     // For simplicity, we'll concatenate the buffers directly
     // In production, you'd want to use a proper audio library like ffmpeg
+    // Note: Audio effects are applied client-side using Pizzicato library
     const totalLength = audioBuffers.reduce((sum, buf) => sum + buf.length, 0);
     const resultBuffer = Buffer.concat(audioBuffers, totalLength);
 
