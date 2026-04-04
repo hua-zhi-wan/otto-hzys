@@ -21,6 +21,7 @@
     "lodash": "^4.17.21",
     "pinyin": "^4.0.0-alpha.0",
     "pizzicato": "^0.6.4",
+    "segmentit": "^2.0.3",
     "vue": "^3.2.13"
   },
   "devDependencies": {
