@@ -2,7 +2,7 @@
 [https://otto-hzys.huazhiwan.xyz](https://otto-hzys.huazhiwan.xyz)
 
 ## 🚮 简介
-电棍otto语音活字印刷生成器。  
+电棍otto语音活字印刷生成器。
 启发于项目 [sakaneko117/HUOZI](https://github.com/sakaneko117/HUOZI)，架构采用纯前端。（虽然Fork了，但全改了）
 
 前端样式采用组件库 element-plus。部署于 vercel 平台。
@@ -23,6 +23,29 @@
 ### 🛅 参数
 + 太多了讲不完了！请自行了解学习人声音频处理！
 
+## 🏧 后端API
+现在支持通过后端API直接生成音频文件！再也不用担心浏览器卡死啦！
+
+### 🛄 API端点
+- **POST `/api/text-to-wav`** - 将文本转换为WAV音频文件
+- **GET `/health`** - 健康检查端点
+
+### 🚾 请求参数
+```json
+{
+  "text": "要转换的文本内容",
+  "isYsdd": false,
+  "useNonDdbPinyin": false,
+  "isSliced": false
+}
+```
+
+### 🚰 快速启动
+```bash
+npm server
+# 运行测试
+npm test
+```
 ## 🚼 开源
-本项目采用 MIT 开源协议    
+本项目采用 MIT 开源协议
 父项目用的不知道什么开源协议
